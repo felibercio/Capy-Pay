@@ -1,0 +1,62 @@
+{
+  "name": "capy-pay-backend",
+  "version": "1.0.0",
+  "description": "Backend service for Capy Pay - Cryptocurrency payments and exchanges",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src/**/*.js",
+    "format": "prettier --write src/**/*.js",
+    "blockchain:init": "node src/scripts/initializeServices.js",
+    "blockchain:status": "node -e \"const ServiceInitializer = require('./src/scripts/initializeServices.js'); const init = new ServiceInitializer(); init.getOverallStatus().then(status => console.log(JSON.stringify(status, null, 2)));\"",
+    "blockchain:test": "node -e \"const { ethers } = require('ethers'); const provider = new ethers.JsonRpcProvider(process.env.BASE_RPC_URL || 'https://mainnet.base.org'); provider.getNetwork().then(network => console.log('Connected to:', network.name, 'Chain ID:', network.chainId)).catch(console.error);\""
+  },
+  "keywords": [
+    "fintech",
+    "cryptocurrency",
+    "pix",
+    "boleto",
+    "starkbank",
+    "payments"
+  ],
+  "author": "Capy Pay Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "dotenv": "^16.3.1",
+    "starkbank": "^2.13.0",
+    "axios": "^1.5.0",
+    "express-rate-limit": "^6.10.0",
+    "express-validator": "^7.0.1",
+    "winston": "^3.10.0",
+    "uuid": "^9.0.0",
+    "crypto": "^1.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "ethers": "^6.8.0",
+    "web3": "^4.2.0",
+    "node-cron": "^3.0.2",
+    "bignumber.js": "^9.1.2",
+    "google-auth-library": "^9.2.0",
+    "crypto-js": "^4.2.0",
+    "node-forge": "^1.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "eslint": "^8.48.0",
+    "prettier": "^3.0.3",
+    "@types/node": "^20.5.0",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+} 

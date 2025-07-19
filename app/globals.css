@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer components {
+  /* Card padrão do Capy Pay */
+  .capy-card {
+    @apply bg-capy-cream rounded-capy shadow-capy p-6 transition-all duration-200;
+  }
+  
+  /* Botão primário */
+  .capy-button {
+    @apply bg-capy-brown text-white font-semibold py-4 px-6 rounded-full 
+           hover:bg-capy-brown-dark transition-colors duration-200
+           active:scale-95 transform shadow-md;
+  }
+  
+  /* Botão secundário */
+  .capy-button-secondary {
+    @apply bg-capy-cream text-capy-dark font-semibold py-4 px-6 rounded-full 
+           hover:bg-capy-light transition-colors duration-200
+           active:scale-95 transform border-2 border-capy-brown;
+  }
+  
+  /* Input padrão */
+  .capy-input {
+    @apply w-full px-4 py-3 rounded-2xl bg-capy-light border-2 border-transparent
+           focus:border-capy-brown focus:outline-none transition-colors duration-200
+           text-capy-dark placeholder-gray-500;
+  }
+  
+  /* Seção de navegação inferior */
+  .capy-nav-item {
+    @apply flex flex-col items-center justify-center py-3 px-4 
+           text-capy-dark hover:text-capy-brown transition-colors duration-200;
+  }
+  
+  /* Badge de tokens */
+  .capy-badge {
+    @apply bg-capy-pink text-capy-dark font-semibold py-2 px-4 rounded-2xl
+           flex items-center justify-between min-w-[120px];
+  }
+}
+
+/* Animações suaves */
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+}
+
+/* Scrollbar customizada */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-capy-light rounded-full;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-capy-brown rounded-full hover:bg-capy-brown-dark;
+} 

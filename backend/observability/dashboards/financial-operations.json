@@ -1,0 +1,349 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Capy Pay - Financial Operations",
+    "tags": ["capy-pay", "financial", "transactions", "brcapy"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "💰 Financial Overview",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 24, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(capypay_transaction_volume_brl)",
+            "legendFormat": "Total Volume (24h)"
+          },
+          {
+            "expr": "increase(capypay_transactions_total[24h])",
+            "legendFormat": "Total Transactions (24h)"
+          },
+          {
+            "expr": "sum(capypay_transaction_volume_brl) / increase(capypay_transactions_total[24h])",
+            "legendFormat": "Avg Transaction Value"
+          },
+          {
+            "expr": "capypay_pool_value_brl",
+            "legendFormat": "Pool Value (BRL)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "currencyBRL"
+          }
+        }
+      },
+
+      {
+        "id": 2,
+        "title": "📊 Transaction Volume by Type (24h)",
+        "type": "barchart",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+        "targets": [
+          {
+            "expr": "sum by (type) (increase(capypay_transaction_volume_brl[24h]))",
+            "legendFormat": "{{type}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "currencyBRL"
+          }
+        }
+      },
+
+      {
+        "id": 3,
+        "title": "🎯 Transaction Success Rate",
+        "type": "gauge",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+        "targets": [
+          {
+            "expr": "sum(rate(capypay_transactions_total{status=\"success\"}[1h])) / sum(rate(capypay_transactions_total[1h])) * 100",
+            "legendFormat": "Success Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 95},
+                {"color": "green", "value": 99}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        }
+      },
+
+      {
+        "id": 4,
+        "title": "🐹 BRcapy Metrics",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 14},
+        "targets": [
+          {
+            "expr": "capypay_brcapy_value",
+            "legendFormat": "BRcapy Value (BRL)",
+            "yAxis": 1
+          },
+          {
+            "expr": "capypay_brcapy_supply_total",
+            "legendFormat": "Total Supply",
+            "yAxis": 2
+          },
+          {
+            "expr": "capypay_brcapy_apy",
+            "legendFormat": "APY (%)",
+            "yAxis": 1
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"}
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "BRcapy Value (BRL)"},
+              "properties": [
+                {"id": "unit", "value": "currencyBRL"},
+                {"id": "custom.axisPlacement", "value": "left"}
+              ]
+            },
+            {
+              "matcher": {"id": "byName", "options": "Total Supply"},
+              "properties": [
+                {"id": "unit", "value": "short"},
+                {"id": "custom.axisPlacement", "value": "right"}
+              ]
+            }
+          ]
+        }
+      },
+
+      {
+        "id": 5,
+        "title": "🏦 Pool Composition",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 22},
+        "targets": [
+          {
+            "expr": "sum by (asset) (capypay_pool_value_brl)",
+            "legendFormat": "{{asset}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "currencyBRL"
+          }
+        }
+      },
+
+      {
+        "id": 6,
+        "title": "📈 Daily Revenue Trend",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 22},
+        "targets": [
+          {
+            "expr": "increase(capypay_pool_daily_revenue[1d])",
+            "legendFormat": "Daily Revenue"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "currencyBRL"
+          }
+        }
+      },
+
+      {
+        "id": 7,
+        "title": "⚖️ Pool Utilization",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 22},
+        "targets": [
+          {
+            "expr": "capypay_pool_utilization_ratio * 100",
+            "legendFormat": "Utilization %"
+          },
+          {
+            "expr": "capypay_pool_reserve_ratio * 100",
+            "legendFormat": "Reserve Ratio %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 70},
+                {"color": "red", "value": 90}
+              ]
+            },
+            "unit": "percent"
+          }
+        }
+      },
+
+      {
+        "id": 8,
+        "title": "🔐 KYC Level Distribution",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 30},
+        "targets": [
+          {
+            "expr": "sum by (user_kyc_level) (capypay_transactions_total)",
+            "legendFormat": "{{user_kyc_level}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        }
+      },
+
+      {
+        "id": 9,
+        "title": "🌍 External API Performance",
+        "type": "timeseries",
+        "gridPos": {"h": 4, "w": 18, "x": 6, "y": 30},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(capypay_external_api_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{provider}} - 95th percentile"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "s"
+          }
+        }
+      },
+
+      {
+        "id": 10,
+        "title": "⛓️ Blockchain Operations",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+        "targets": [
+          {
+            "expr": "sum by (network, status) (rate(capypay_blockchain_operations_total[5m]))",
+            "legendFormat": "{{network}} - {{status}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "ops"
+          }
+        }
+      },
+
+      {
+        "id": 11,
+        "title": "🚨 Financial Alerts",
+        "type": "logs",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
+        "targets": [
+          {
+            "expr": "{job=\"capy-pay\",level=\"ERROR\"} |= \"financial\" or \"transaction\" or \"pool\" or \"brcapy\"",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "wrapLogMessage": true,
+          "prettifyLogMessage": true,
+          "enableLogDetails": true,
+          "sortOrder": "Descending"
+        }
+      },
+
+      {
+        "id": 12,
+        "title": "💳 Transaction Latency by Type",
+        "type": "heatmap",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 42},
+        "targets": [
+          {
+            "expr": "sum by (le, type) (rate(capypay_transaction_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{type}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "spectrum"},
+            "unit": "s"
+          }
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "transaction_type",
+          "type": "query",
+          "query": "label_values(capypay_transactions_total, type)",
+          "current": {
+            "value": "all",
+            "text": "All"
+          },
+          "multi": true,
+          "includeAll": true
+        },
+        {
+          "name": "kyc_level",
+          "type": "query",
+          "query": "label_values(capypay_transactions_total, user_kyc_level)",
+          "current": {
+            "value": "all",
+            "text": "All"
+          },
+          "multi": true,
+          "includeAll": true
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "BRcapy Updates",
+          "datasource": "prometheus",
+          "enable": true,
+          "expr": "changes(capypay_brcapy_value[1h]) > 0",
+          "iconColor": "orange",
+          "titleFormat": "BRcapy Value Update"
+        },
+        {
+          "name": "High Value Transactions",
+          "datasource": "prometheus", 
+          "enable": true,
+          "expr": "capypay_transaction_volume_brl > 10000",
+          "iconColor": "red",
+          "titleFormat": "High Value Transaction"
+        }
+      ]
+    }
+  }
+} 
