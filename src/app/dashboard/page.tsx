@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import TopMenu from '../../components/navigation/TopMenu';
+import Image from 'next/image';
 import {
   FiTrendingUp,
   FiDollarSign,
@@ -46,7 +47,18 @@ export default function DashboardPage() {
   return (
     <main className="animate-fade-in">
       {/* Header with title, welcome, and logout button */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-8" >
+        <div className="flex justify-center mb-6">
+          <Image
+            src="/capy1.png"
+            alt="Capy Pay Logo"
+            width={120}
+            height={120}
+            priority={true}
+            className="rounded-full"
+          />
+        </div>      
+
         <div className="text-center flex-1">
           <h1 className="text-4xl font-bold text-capy-dark mb-2">Capy Pay</h1>
           <p className="text-capy-dark/70 text-lg">

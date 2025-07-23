@@ -36,7 +36,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex justify-center mb-6">
           <Image
-            src="/images/capy-logo.svg"
+            src="/capy1.png"
             alt="Capy Pay Logo"
             width={120}
             height={120}

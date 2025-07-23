@@ -113,7 +113,7 @@ export default function PixPage() {
         <div className="w-16"></div>
       </div>
 
-      <TopMenu />
+      {/* <TopMenu /> */}
 
       {/* Main Content */}
       <div className="space-y-6">
