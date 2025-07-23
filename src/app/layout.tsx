@@ -1,16 +1,13 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
-import Providers from '../../app/providers';
-
-const inter = Inter({ subsets: ['latin'] });
+import { Web3AuthContextProvider } from '@/context/Web3AuthContext';
 
 export const metadata: Metadata = {
-  title: 'Capy Pay - Câmbio e Pagamentos Internacionais',
-  description: 'Mini app de câmbio e pagamentos internacionais para a rede Base',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
-  themeColor: '#0ea5e9',
-  manifest: '/manifest.json',
+  title: 'Capy Pay - Pagamentos Cripto Simples',
+  description: 'Pague boletos e faça transferências com cripto de forma fácil e rápida',
+  icons: {
+    icon: '/capy-favicon.svg',
+  },
 };
 
 export default function RootLayout({
@@ -20,18 +17,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-        <meta name="theme-color" content="#0ea5e9" />
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-      </head>
-      <body className={`${inter.className} bg-gray-50 antialiased`}>
-        <Providers>
-          <main className="min-h-screen">
-            {children}
-          </main>
-        </Providers>
+      <body className="bg-capy-teal min-h-screen">
+        <Web3AuthContextProvider>
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="w-full max-w-md">
+              {children}
+            </div>
+          </div>
+        </Web3AuthContextProvider>
       </body>
     </html>
   );

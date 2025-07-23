@@ -8,40 +8,42 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit",
-    "tunnel": "ngrok http 3000 --domain=$NGROK_DOMAIN"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "next": "^14.0.0",
+    "@base-org/account": "latest",
+    "@base-org/account-ui": "latest",
+    "@coinbase/onchainkit": "latest",
+    "@web3auth/base": "^9.7.0",
+    "@web3auth/ethereum-provider": "^9.7.0",
+    "@web3auth/modal": "^10.0.5",
+    "@web3auth/openlogin-adapter": "^8.12.4",
+    "clsx": "^2.1.0",
+    "ethers": "^6.15.0",
+    "next": "^14.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "wagmi": "^2.0.0",
-    "viem": "^2.0.0",
-    "@tanstack/react-query": "^5.0.0",
-    "zustand": "^4.4.0",
-    "clsx": "^2.0.0",
-    "tailwind-merge": "^2.0.0",
-    "lucide-react": "^0.300.0",
-    "@headlessui/react": "^1.7.0",
-    "framer-motion": "^10.0.0",
-    "@coinbase/onchainkit": "^0.31.0"
+    "react-icons": "^4.12.0",
+    "tailwind-merge": "^2.2.0",
+    "tailwindcss-animate": "^1.0.7",
+    "viem": "^2.21.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.10",
+    "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "typescript": "^5.0.0",
-    "eslint": "^8.0.0",
-    "eslint-config-next": "^14.0.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "tailwindcss": "^3.3.0",
-    "autoprefixer": "^10.4.0",
-    "postcss": "^8.4.0",
-    "@tailwindcss/forms": "^0.5.0",
-    "@tailwindcss/typography": "^0.5.0"
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "autoprefixer": "^10.4.17",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^14.2.0",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.0"
   },
   "engines": {
     "node": ">=18.0.0"
   }
-} 
+}
