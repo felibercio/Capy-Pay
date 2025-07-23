@@ -1,19 +1,18 @@
 'use client';
 
-import { useMiniKit } from '@/hooks/useMiniKit';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { CapyLogo } from '@/components/CapyLogo';
 
 export function WalletConnection() {
-  const { isConnected, connect, user } = useMiniKit();
-
-  if (isConnected && user) {
-    return null; // Não mostra nada quando já conectado
-  }
+  const handleConnect = () => {
+    console.log('Simulação: Conexão de carteira');
+    // Simulação - funcionalidade completa será implementada posteriormente
+  };
 
   return (
     <div className="card p-6 mb-6 text-center">
-      <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-        <span className="text-2xl">🔗</span>
+      <div className="flex justify-center mb-4">
+        <CapyLogo size="md" />
       </div>
       
       <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -21,19 +20,19 @@ export function WalletConnection() {
       </h2>
       
       <p className="text-gray-600 mb-6">
-        Para usar o Capy Pay, você precisa conectar sua wallet através do World ID
+        Para usar o Capy Pay, você precisa conectar sua wallet (Simulação)
       </p>
 
       <button
-        onClick={connect}
+        onClick={handleConnect}
         className="btn-primary w-full flex items-center justify-center space-x-2"
       >
         <span>🌍</span>
-        <span>Conectar com World ID</span>
+        <span>Conectar Wallet (Simulado)</span>
       </button>
 
       <div className="mt-4 text-xs text-gray-500">
-        <p>Seguro • Privado • Descentralizado</p>
+        <p>Esta é uma simulação - funcionalidade em desenvolvimento</p>
       </div>
     </div>
   );

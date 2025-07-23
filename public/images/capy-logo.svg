@@ -1,0 +1,66 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background rounded rectangle with teal gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1dd1a1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#14b8a6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="capyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#d97706;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#b45309;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background rounded square -->
+  <rect width="120" height="120" rx="28" fill="url(#bgGradient)"/>
+  
+  <!-- Main capybara body -->
+  <ellipse cx="60" cy="75" rx="38" ry="28" fill="url(#capyGradient)" stroke="#0f172a" stroke-width="2"/>
+  
+  <!-- Capybara head -->
+  <ellipse cx="60" cy="48" rx="32" ry="25" fill="url(#capyGradient)" stroke="#0f172a" stroke-width="2"/>
+  
+  <!-- Ears -->
+  <ellipse cx="45" cy="32" rx="7" ry="10" fill="url(#capyGradient)" stroke="#0f172a" stroke-width="2"/>
+  <ellipse cx="75" cy="32" rx="7" ry="10" fill="url(#capyGradient)" stroke="#0f172a" stroke-width="2"/>
+  
+  <!-- Inner ears -->
+  <ellipse cx="45" cy="34" rx="4" ry="5" fill="#b45309"/>
+  <ellipse cx="75" cy="34" rx="4" ry="5" fill="#b45309"/>
+  
+  <!-- Eyes -->
+  <ellipse cx="52" cy="45" rx="4" ry="5" fill="#0f172a"/>
+  <ellipse cx="68" cy="45" rx="4" ry="5" fill="#0f172a"/>
+  <circle cx="53" cy="43" r="1.5" fill="white"/>
+  <circle cx="69" cy="43" r="1.5" fill="white"/>
+  
+  <!-- Nose -->
+  <ellipse cx="60" cy="54" rx="3" ry="2" fill="#0f172a"/>
+  
+  <!-- Mouth - characteristic capybara smile -->
+  <path d="M 54 60 Q 60 64 66 60" stroke="#0f172a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  
+  <!-- Facial texture lines -->
+  <path d="M 38 42 Q 40 40 42 42" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 40 48 Q 42 46 44 48" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 36 52 Q 38 50 40 52" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 78 42 Q 80 40 82 42" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 76 48 Q 78 46 80 48" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 80 52 Q 82 50 84 52" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  
+  <!-- Body texture lines -->
+  <path d="M 32 70 Q 34 68 36 70" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 38 76 Q 40 74 42 76" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 35 82 Q 37 80 39 82" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 84 70 Q 86 68 88 70" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 78 76 Q 80 74 82 76" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 81 82 Q 83 80 85 82" stroke="#b45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  
+  <!-- Front legs/paws -->
+  <ellipse cx="45" cy="95" rx="7" ry="10" fill="url(#capyGradient)" stroke="#0f172a" stroke-width="2"/>
+  <ellipse cx="75" cy="95" rx="7" ry="10" fill="url(#capyGradient)" stroke="#0f172a" stroke-width="2"/>
+  
+  <!-- Subtle shadow effect -->
+  <ellipse cx="60" cy="108" rx="25" ry="4" fill="#000000" opacity="0.1"/>
+</svg> 

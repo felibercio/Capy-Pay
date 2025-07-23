@@ -1,1 +1,14 @@
- 
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="16" fill="#7ABDB0"/>
+  <ellipse cx="16" cy="20" rx="8" ry="6" fill="#E89B4B"/>
+  <circle cx="16" cy="12" r="5" fill="#E89B4B"/>
+  <circle cx="12" cy="10" r="1.5" fill="#E89B4B"/>
+  <circle cx="20" cy="10" r="1.5" fill="#E89B4B"/>
+  <!-- Olhos fechados - linhas curvas simples -->
+  <path d="M 12 11.5 Q 13 10.5 14 11.5" stroke="#2C3E2D" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+  <path d="M 18 11.5 Q 19 10.5 20 11.5" stroke="#2C3E2D" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+  <!-- Nariz - pequeno ponto azul escuro -->
+  <circle cx="16" cy="13" r="0.5" fill="#2C3E2D"/>
+  <!-- Sorriso gentil -->
+  <path d="M 13 14.5 Q 16 16 19 14.5" stroke="#2C3E2D" stroke-width="0.6" fill="none" stroke-linecap="round"/>
+</svg> 

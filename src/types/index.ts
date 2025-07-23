@@ -73,6 +73,7 @@ export interface ExchangeRate {
 export interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  variant?: 'spinner' | 'logo';
 }
 
 export interface ButtonProps {

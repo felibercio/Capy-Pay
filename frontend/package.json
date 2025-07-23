@@ -10,7 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@worldcoin/minikit-js": "^0.1.0",
+"@worldcoin/minikit-js": "latest"
     "next": "14.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",

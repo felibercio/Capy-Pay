@@ -1,55 +1,34 @@
-// src/app/page.tsx
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { FiLoader, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import { useWeb3Auth } from '@/context/Web3AuthContext';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoggedIn, isLoading, isInitialized, error: contextError } = useWeb3Auth();
-  const [localError, setLocalError] = useState<string | null>(null);
-  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Redirecionar se já estiver logado
-  useEffect(() => {
-    if (isLoggedIn && isInitialized) {
-      console.log("✅ Usuário já está logado, redirecionando...");
-      router.push('/dashboard');
-    }
-  }, [isLoggedIn, isInitialized, router]);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
 
-  const handleLogin = async () => {
-    if (!isInitialized) {
-      setLocalError("Web3Auth ainda não foi inicializado. Aguarde...");
-      return;
-    }
-    
-    setLocalError(null);
-    
-    try {
-      console.log("🚀 Iniciando login com Web3Auth via contexto...");
-      
-      await login();
-      
-      setLoginSuccess(true);
-      console.log("✅ Login realizado com sucesso!");
-      
-      // Redirecionar após delay
+    // Simulação de autenticação
+    if (email === 'teste@capypay.com' && password === '123456') {
+      console.log('✅ Login simulado bem-sucedido');
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);
-      
-    } catch (err: any) {
-      console.error("❌ Erro no login:", err);
-      setLocalError(err.message || "Falha no login. Tente novamente.");
-      setLoginSuccess(false);
+    } else {
+      setError('Email ou senha incorretos. Use: teste@capypay.com / 123456');
+      setIsLoading(false);
     }
   };
-
-  const currentError = localError || contextError;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-capy-light-green p-4">
@@ -69,69 +48,65 @@ export default function LoginPage() {
         <h1 className="text-3xl font-bold text-capy-dark-brown mb-2">Capy Pay</h1>
         <p className="text-capy-green mb-8">Câmbio e pagamentos globais na Base, simples e seguros.</p>
 
-        {/* Status da inicialização */}
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg text-sm">
-          <div className="text-gray-600">
-            <strong>Status da inicialização:</strong>
-          </div>
-          <div className={`${isInitialized ? 'text-green-600' : 'text-orange-500'}`}>
-            Web3Auth: {isInitialized ? '✅ Inicializado' : '⏳ Inicializando...'}
-          </div>
-          <div className="text-gray-600">
-            Client ID: {process.env.NEXT_PUBLIC_WEB3AUTH_CLIENT_ID ? '✅ Configurado' : '❌ Faltando'}
-          </div>
-          {isLoggedIn && (
-            <div className="text-blue-600">
-              Status: ✅ Conectado
-            </div>
-          )}
-        </div>
-
-        {/* Botão de Login */}
-        <button
-          onClick={handleLogin}
-          disabled={isLoading || loginSuccess || !isInitialized}
-          className={`w-full flex items-center justify-center gap-3 px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300
-            ${isLoading || loginSuccess || !isInitialized
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-capy-teal text-white hover:bg-capy-dark-teal'}
-          `}
-        >
-          {isLoading && <FiLoader className="animate-spin" />}
-          {loginSuccess && <FiCheckCircle />}
-          {!isLoading && !loginSuccess && (
-            <img
-              src="https://developers.google.com/identity/images/g-logo.png"
-              alt="Google logo"
-              className="w-6 h-6"
+        {/* Formulário de Login */}
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-capy-teal focus:border-transparent outline-none text-gray-700"
+              required
+              disabled={isLoading}
             />
-          )}
-          <span>
-            {!isInitialized 
-              ? 'Inicializando...' 
-              : isLoading 
-                ? 'Conectando...' 
-                : loginSuccess 
-                  ? 'Conectado!' 
-                  : 'Entrar com Google'
-            }
-          </span>
-        </button>
+          </div>
+
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-capy-teal focus:border-transparent outline-none text-gray-700 pr-12"
+              required
+              disabled={isLoading}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              disabled={isLoading}
+            >
+              {showPassword ? <FiEyeOff /> : <FiEye />}
+            </button>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className={`w-full py-3 rounded-lg text-lg font-semibold transition-all duration-300 ${
+              isLoading
+                ? 'bg-gray-400 cursor-not-allowed text-gray-600'
+                : 'bg-capy-teal text-white hover:bg-capy-dark-teal'
+            }`}
+          >
+            {isLoading ? 'Entrando...' : 'Entrar'}
+          </button>
+        </form>
 
         {/* Mensagem de Erro */}
-        {currentError && (
-          <p className="text-red-500 text-sm mt-4 flex items-center justify-center">
-            <FiXCircle className="mr-2" /> {currentError}
-          </p>
+        {error && (
+          <p className="text-red-500 text-sm mt-4">{error}</p>
         )}
 
-        {/* Informações sobre a integração */}
+        {/* Credenciais de Teste */}
         <div className="mt-6 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-          <strong>🔧 Web3Auth Context (Fase 2):</strong>
+          <strong>🧪 Credenciais de Teste:</strong>
           <br />
-          Login real com Web3Auth via React Context.
+          Email: teste@capypay.com
           <br />
-          Autenticação Google + Carteira EVM na Base Sepolia.
+          Senha: 123456
         </div>
 
         <p className="text-xs text-gray-500 mt-4">

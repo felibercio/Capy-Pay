@@ -2,100 +2,162 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Importar fonte Inter */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-@layer base {
-  html {
-    font-family: 'Inter', system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  body {
-    @apply text-gray-900;
-    /* Otimizações para WebView mobile */
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-  }
-
-  /* Scrollbar personalizado para webkit */
-  ::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 rounded-full;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400;
-  }
+/* Variáveis CSS Customizadas do Capy Pay */
+:root {
+  --capy-teal: #14b8a6;
+  --capy-dark-teal: #0f766e;
+  --capy-brown: #92400e;
+  --capy-dark-brown: #451a03;
+  --capy-light: #f0fdfa;
+  --capy-light-green: #ecfdf5;
+  --capy-green: #16a34a;
+  --capy-dark: #1f2937;
+  --capy-success: #10b981;
 }
 
+/* Classes utilitárias customizadas do Capy Pay */
 @layer components {
-  /* Componentes customizados */
-  .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  .capy-card {
+    @apply bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200;
   }
 
-  .btn-secondary {
-    @apply bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-xl transition-all duration-200;
+  .capy-button {
+    @apply bg-capy-teal hover:bg-capy-dark-teal text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md active:scale-95;
   }
 
-  .card {
-    @apply bg-white rounded-2xl shadow-sm border border-gray-100;
+  .capy-button-secondary {
+    @apply bg-capy-light text-capy-brown hover:bg-capy-brown hover:text-white font-medium py-2 px-4 rounded-xl transition-all duration-200 border border-capy-brown/20;
   }
 
-  .input-field {
-    @apply w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors;
+  .rounded-capy-sm {
+    @apply rounded-xl;
   }
 
-  /* Animações customizadas */
-  .animate-pulse-gentle {
-    animation: pulse-gentle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  @keyframes pulse-gentle {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
   }
 }
 
+/* Classes de cor customizadas */
 @layer utilities {
-  /* Utilitários específicos para Mobile */
-  .touch-manipulation {
-    touch-action: manipulation;
+  .bg-capy-teal {
+    background-color: var(--capy-teal);
   }
 
-  .safe-area-inset {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+  .bg-capy-dark-teal {
+    background-color: var(--capy-dark-teal);
   }
 
-  /* Estados de loading */
-  .loading-shimmer {
-    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
+  .bg-capy-light-green {
+    background-color: var(--capy-light-green);
   }
 
-  @keyframes shimmer {
-    0% {
-      background-position: -200% 0;
-    }
-    100% {
-      background-position: 200% 0;
-    }
+  .text-capy-dark-brown {
+    color: var(--capy-dark-brown);
   }
+
+  .text-capy-green {
+    color: var(--capy-green);
+  }
+
+  .border-capy-green {
+    border-color: var(--capy-green);
+  }
+
+  .bg-capy-brown {
+    background-color: var(--capy-brown);
+  }
+
+  .bg-capy-dark-brown {
+    background-color: var(--capy-dark-brown);
+  }
+
+  .bg-capy-light {
+    background-color: var(--capy-light);
+  }
+
+  .bg-capy-light-green {
+    background-color: var(--capy-light-green);
+  }
+
+  .bg-capy-green {
+    background-color: var(--capy-green);
+  }
+
+  .text-capy-teal {
+    color: var(--capy-teal);
+  }
+
+  .text-capy-brown {
+    color: var(--capy-brown);
+  }
+
+  .text-capy-dark-brown {
+    color: var(--capy-dark-brown);
+  }
+
+  .text-capy-green {
+    color: var(--capy-green);
+  }
+
+  .text-capy-dark {
+    color: var(--capy-dark);
+  }
+
+  .text-capy-success {
+    color: var(--capy-success);
+  }
+
+  .border-capy-teal {
+    border-color: var(--capy-teal);
+  }
+
+  .border-capy-brown {
+    border-color: var(--capy-brown);
+  }
+
+  .border-capy-green {
+    border-color: var(--capy-green);
+  }
+
+  .hover\:bg-capy-dark-teal:hover {
+    background-color: var(--capy-dark-teal);
+  }
+}
+
+/* Animações customizadas */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Estilos globais adicionais */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar customizada */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--capy-teal);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--capy-dark-teal);
 } 

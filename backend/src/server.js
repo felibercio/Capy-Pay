@@ -12,6 +12,7 @@ const referralRoutes = require('./routes/referral');
 const notificationsRoutes = require('./routes/notifications');
 const kycRoutes = require('./routes/kyc');
 const brcapyRoutes = require('./routes/brcapy');
+const demoRoutes = require('./routes/demo');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -144,6 +145,7 @@ app.use('/api/referral', referralRoutes);
 app.use('/api/notifications', notificationLimiter, notificationsRoutes);
 app.use('/api/kyc', kycLimiter, kycRoutes);
 app.use('/api/brcapy', brcapyLimiter, brcapyRoutes);
+app.use('/api/demo', demoRoutes); // Demo routes for hackathon
 
 // Catch-all for API routes
 app.use('/api/*', (req, res) => {
