@@ -12,10 +12,11 @@ import {
   FiRefreshCcw,
   FiFileText,
   FiDroplet,
-  FiTarget
+  FiTarget,
 } from 'react-icons/fi';
 
 import { FaExchangeAlt } from "react-icons/fa";
+import { IoArrowForwardOutline } from "react-icons/io5";
 
 export default function TopMenu() {
   const menuItems = [
@@ -44,10 +45,10 @@ export default function TopMenu() {
       description: 'Staking e rendimentos'
     },
     {
-      href: '/pools',
-      icon: FiDroplet,
-      label: 'Pools',
-      description: 'Liquidez'
+      href: '/depositos',
+      icon: IoArrowForwardOutline,
+      label: 'Depósitos',
+      description: 'Deposite em stablecoins'
     },
     {
       href: '/referral',

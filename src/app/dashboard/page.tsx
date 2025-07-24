@@ -21,7 +21,7 @@ export default function DashboardPage() {
 
   // Dados simulados
   const mockWalletAddress = "0x1234...abcd";
-  const mockBalance = 0.0425;
+  const mockBalance = 155.89;
   const mockNetwork = "Base Sepolia";
 
   const copyAddress = async () => {
@@ -136,9 +136,9 @@ export default function DashboardPage() {
             <FiDollarSign className="w-8 h-8 text-capy-brown mr-2" />
             <div className="text-3xl font-bold text-capy-dark">
               {mockBalance.toLocaleString('pt-BR', {
-                minimumFractionDigits: 4,
-                maximumFractionDigits: 4
-              })} <span className="text-lg font-medium">ETH</span>
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })} <span className="text-lg font-medium">BRL</span>
             </div>
           </div>
 
