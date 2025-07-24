@@ -127,7 +127,7 @@ export default function PixPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-capy-dark mb-2">
-                Valor do PIX (USDC)
+                Valor do PIX (BRZ)
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">

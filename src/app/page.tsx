@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
+import { signInWithPopup } from 'firebase/auth';
+import { auth, provider } from '../firebaseconfig'; // Ajuste o caminho conforme necessário
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +20,6 @@ export default function LoginPage() {
     setIsLoading(true);
     setError('');
 
-    // Simulação de autenticação
     if (email === 'teste@capypay.com' && password === '123456') {
       console.log('✅ Login simulado bem-sucedido');
       setTimeout(() => {
@@ -30,52 +31,52 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+      await signInWithPopup(auth, provider);
+      router.push('/dashboard');
+    } catch (err) {
+      console.error(err);
+      setError('Falha ao fazer login com o Google.');
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-capy-light-green p-4">
       <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center border border-capy-green">
-        {/* Logo */}
         <div className="flex justify-center mb-6">
-          <Image
-            src="/capy1.png"
-            alt="Capy Pay Logo"
-            width={120}
-            height={120}
-            priority={true}
-            className="rounded-full"
-          />
+          <Image src="/capy1.png" alt="Capy Pay Logo" width={120} height={120} priority className="rounded-full" />
         </div>
-        
+
         <h1 className="text-3xl font-bold text-capy-dark-brown mb-2">Capy Pay</h1>
         <p className="text-capy-green mb-8">Câmbio e pagamentos globais na Base, simples e seguros.</p>
 
-        {/* Formulário de Login */}
         <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-capy-teal focus:border-transparent outline-none text-gray-700"
-              required
-              disabled={isLoading}
-            />
-          </div>
-
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-4 py-3 border rounded-lg text-gray-700"
+            required
+            disabled={isLoading}
+          />
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
               placeholder="Senha"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-capy-teal focus:border-transparent outline-none text-gray-700 pr-12"
+              className="w-full px-4 py-3 border rounded-lg text-gray-700 pr-12"
               required
               disabled={isLoading}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              className="absolute right-3 top-1/2 -translate-y-1/2"
               disabled={isLoading}
             >
               {showPassword ? <FiEyeOff /> : <FiEye />}
@@ -85,27 +86,33 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-3 rounded-lg text-lg font-semibold transition-all duration-300 ${
-              isLoading
-                ? 'bg-gray-400 cursor-not-allowed text-gray-600'
-                : 'bg-capy-teal text-white hover:bg-capy-dark-teal'
+            className={`w-full py-3 rounded-lg text-lg font-semibold ${
+              isLoading ? 'bg-gray-400' : 'bg-capy-teal text-white hover:bg-capy-dark-teal'
             }`}
           >
             {isLoading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
 
-        {/* Mensagem de Erro */}
-        {error && (
-          <p className="text-red-500 text-sm mt-4">{error}</p>
-        )}
+        <div className="my-4">
+          <hr className="my-4" />
+          <p className="text-sm text-gray-500">ou entre com</p>
+        </div>
 
-        {/* Credenciais de Teste */}
+        <button
+          onClick={handleGoogleLogin}
+          disabled={isLoading}
+          className="w-full py-3 rounded-lg border border-gray-300 hover:bg-gray-100 flex justify-center items-center gap-2"
+        >
+          <Image src="/google-icon.svg" alt="Google" width={20} height={20} />
+          <span>Entrar com Google</span>
+        </button>
+
+        {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+
         <div className="mt-6 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-          <strong>🧪 Credenciais de Teste:</strong>
-          <br />
-          Email: teste@capypay.com
-          <br />
+          <strong>🧪 Credenciais de Teste:</strong><br />
+          Email: teste@capypay.com<br />
           Senha: 123456
         </div>
 
@@ -115,4 +122,4 @@ export default function LoginPage() {
       </div>
     </div>
   );
-} 
+}

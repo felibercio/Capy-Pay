@@ -15,13 +15,15 @@ import {
   FiTarget
 } from 'react-icons/fi';
 
+import { FaExchangeAlt } from "react-icons/fa";
+
 export default function TopMenu() {
   const menuItems = [
     {
-      href: '/dashboard',
-      icon: FiHome,
-      label: 'Dashboard',
-      description: 'Visão geral'
+      href: '/cambio',
+      icon: FaExchangeAlt,
+      label: 'Câmbio',
+      description: 'Troque suas moedas'
     },
     {
       href: '/pix',

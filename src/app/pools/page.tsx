@@ -70,7 +70,7 @@ export default function PoolsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="flex -space-x-2 mr-3">
-                    <div className="w-8 h-8 bg-capy-teal rounded-full flex items-center justify-center text-white text-xs font-bold">
+                    <div className="w-8 h-8 bg-capy-info rounded-full flex items-center justify-center text-white text-xs font-bold">
                       U
                     </div>
                     <div className="w-8 h-8 bg-capy-brown rounded-full flex items-center justify-center text-white text-xs font-bold">
@@ -78,7 +78,7 @@ export default function PoolsPage() {
                     </div>
                   </div>
                   <div className="text-left">
-                    <p className="font-medium text-capy-dark">USDC/BRL</p>
+                    <p className="font-medium text-capy-dark">USDC/BRZ</p>
                     <p className="text-sm text-capy-dark/60">TVL: $1.2M</p>
                   </div>
                 </div>
@@ -93,15 +93,15 @@ export default function PoolsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="flex -space-x-2 mr-3">
-                    <div className="w-8 h-8 bg-capy-brown rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      B
+                    <div className="w-8 h-8 bg-capy-info rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      E
                     </div>
-                    <div className="w-8 h-8 bg-capy-teal rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      C
+                    <div className="w-8 h-8 bg-capy-info rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      U
                     </div>
                   </div>
                   <div className="text-left">
-                    <p className="font-medium text-capy-dark">BRZ/CAPY</p>
+                    <p className="font-medium text-capy-dark">EURC/USDC</p>
                     <p className="text-sm text-capy-dark/60">TVL: $890K</p>
                   </div>
                 </div>
