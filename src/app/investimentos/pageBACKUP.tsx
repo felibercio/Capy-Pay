@@ -19,7 +19,6 @@ import {
 export default function PoolsUnificadasPage() {
   const [selectedPool, setSelectedPool] = useState<string | null>(null);
   const [stakeAmount, setStakeAmount] = useState('');
-  const [showBRcapyInfo, setShowBRcapyInfo] = useState(false);
 
   const stakingPools = [
     {
@@ -77,14 +76,46 @@ export default function PoolsUnificadasPage() {
       <div className="capy-card mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-capy-dark">Pools de Staking</h3>
-          <span className="text-sm text-capy-dark/70">Em breve!!</span>
+          <span className="text-sm text-capy-dark/70">APY anualizado</span>
         </div>
 
+        <div className="space-y-4">
+          {stakingPools.map(pool => (
+            <div key={pool.id} className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h4 className="font-semibold text-capy-dark">{pool.name}</h4>
+                  <p className="text-sm text-capy-dark/70">{pool.description}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-capy-success">{pool.apy}% APY</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div><p className="text-sm text-capy-dark/70">TVL</p><p className="font-medium text-capy-dark">${pool.tvl}</p></div>
+                <div><p className="text-sm text-capy-dark/70">Meu Stake</p><p className="font-medium text-capy-dark">{pool.userStaked} CAPY</p></div>
+                <div><p className="text-sm text-capy-dark/70">Rewards</p><p className="font-medium text-green-600">~R$ 12,34/dia</p></div>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={() => setSelectedPool(pool.id)} className="flex-1 flex items-center justify-center px-4 py-2 bg-capy-teal text-white rounded-lg hover:bg-capy-dark-teal transition-colors">
+                  <FiPlusCircle className="w-4 h-4 mr-2" /> Stake
+                </button>
+                {parseFloat(pool.userStaked) > 0 && (
+                  <button onClick={() => handleUnstake(pool.id)} className="flex-1 flex items-center justify-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                    <FiMinusCircle className="w-4 h-4 mr-2" /> Unstake
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Modal de Stake */}
       {selectedPool && (
-        <div className="capy-card bg-blue-50 border-blue-200 mb-6 ">
+        <div className="capy-card bg-blue-50 border-blue-200 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-blue-800">
               Fazer Stake - {stakingPools.find(p => p.id === selectedPool)?.name}
@@ -120,7 +151,7 @@ export default function PoolsUnificadasPage() {
       )}
 
       {/* Info Card */}
-      {/* <div className="capy-card bg-yellow-50 border-yellow-200 mb-6">
+      <div className="capy-card bg-yellow-50 border-yellow-200 mb-6">
         <div className="flex items-start">
           <FiInfo className="w-5 h-5 text-yellow-600 mr-3 mt-0.5" />
           <div>
@@ -133,7 +164,7 @@ export default function PoolsUnificadasPage() {
             </ul>
           </div>
         </div>
-      </div> */}
+      </div>
 
       {/* Formulário de Staking BRcapy+ */}
       <div className="bg-white border border-capy-dark/10 rounded-xl p-6 mt-4">
@@ -186,78 +217,74 @@ export default function PoolsUnificadasPage() {
       </div>
 
       {/* BRcapy+ - O Token de Rendimento do Capy Pay */}
-      <div className="capy-card bg-capy-light/30 border border-capy-dark/10 mb-6 mt-6">
+      <div className="capy-card bg-capy-light/30 border border-capy-dark/10 mb-6">
         <div className="flex items-start mb-4">
           <FiTrendingUp className="w-6 h-6 text-capy-dark mr-3 mt-1" />
-          <div className="flex-1">
-            <h3 className="text-xl font-semibold text-capy-dark mb-2">
+          <div>
+            <h3 className="text-xl font-semibold text-capy-dark mb-4">
               🪙 BRcapy+ — O Token de Rendimento do Capy Pay
             </h3>
+
             <p className="text-capy-dark/70 text-sm leading-relaxed mb-4">
-              O BRcapy+ permite que você participe dos rendimentos gerados pelo app Capy Pay.
+              <strong>BRcapy+</strong> é uma <em>yieldcoin</em> (token de rendimento) do ecossistema Capy Pay, <strong>lastreada na receita gerada pelo próprio protocolo</strong> e no rendimento equivalente ao <strong>CDI</strong>.
             </p>
 
-            <button
-              onClick={() => setShowBRcapyInfo(prev => !prev)}
-              className="text-capy-light text-sm font-medium hover:underline mb-4"
-            >
-              {showBRcapyInfo ? 'Ocultar detalhes' : 'Saiba mais sobre como funciona'}
-            </button>
+            <h4 className="text-base font-semibold text-capy-dark mb-2 mt-4">🔧 Como Funciona o BRcapy+</h4>
+            <ol className="list-decimal pl-5 space-y-2 text-sm text-capy-dark/80 mb-4">
+              <li>
+                <strong>Staking de BRZ:</strong> Usuários interessados em rendimento fazem <strong>staking de BRZ</strong> dentro do Capy Pay. Em troca, recebem <strong>BRcapy+ na proporção 1:1</strong> (inicialmente), que representa sua participação no pool de rendimento.
+              </li>
+              <li>
+                <strong>Rendimento Base (CDI):</strong> O BRZ em staking é alocado em <em>ativos de renda fixa tokenizados</em> que acompanham o CDI.
+                <br />
+                Exemplos: Tesouro Direto (via Liqi, MB Tokens), Agrotokens, FIDC tokenizados, DEXs com stable yield (Credix, TrueFi, etc).
+              </li>
+              <li>
+                <strong>Receita do Protocolo:</strong> Parte das taxas do Capy Pay (ex: boleto, swap, cartão) também vai para a <strong>tesouraria do BRcapy+</strong>, aumentando seu valor com o tempo.
+              </li>
+            </ol>
 
-            {showBRcapyInfo && (
-              <div className="transition-all duration-300 ease-in-out">
-                <p className="text-capy-dark/70 text-sm leading-relaxed mb-4">
-                  <strong>BRcapy+</strong> é uma <em>yieldcoin</em> do ecossistema Capy Pay, <strong>lastreada na receita do protocolo</strong> e no rendimento equivalente ao <strong>CDI</strong>.
-                </p>
+            <h4 className="text-base font-semibold text-capy-dark mb-2 mt-4">📈 Por que o BRcapy+ se valoriza?</h4>
+            <ul className="list-disc pl-5 text-sm text-capy-dark/80 space-y-1 mb-4">
+              <li>📊 <strong>Rendimentos externos</strong> (CDI via tokens de renda fixa)</li>
+              <li>💰 <strong>Taxas do app Capy Pay</strong> (ex: 30% da taxa de boleto vai para a tesouraria)</li>
+              <li>🔁 <strong>Alta utilização do app</strong> (quanto mais usuários, maior o valor acumulado)</li>
+            </ul>
 
-                <h4 className="text-base font-semibold text-capy-dark mb-2 mt-4">🔧 Como Funciona o BRcapy+</h4>
-                <ol className="list-decimal pl-5 space-y-2 text-sm text-capy-dark/80 mb-4">
-                  <li><strong>Staking de BRZ:</strong> Você faz stake de BRZ e recebe BRcapy+ (1:1).</li>
-                  <li><strong>Rendimento Base:</strong> BRZ é investido em renda fixa tokenizada que acompanha o CDI.</li>
-                  <li><strong>Receita do Protocolo:</strong> Parte das taxas do app vai para o cofre do BRcapy+.</li>
-                </ol>
+            <p className="text-capy-dark/70 text-sm mb-4">
+              O BRcapy+ deixa de valer <strong>1:1 com o BRZ</strong> e passa a valer <strong>mais</strong>, refletindo esse crescimento.
+            </p>
 
-                <h4 className="text-base font-semibold text-capy-dark mb-2 mt-4">📈 Por que o BRcapy+ se valoriza?</h4>
-                <ul className="list-disc pl-5 text-sm text-capy-dark/80 space-y-1 mb-4">
-                  <li>📊 Rendimento externo via CDI</li>
-                  <li>💰 Receita do app Capy Pay (ex: 30% da taxa de boleto)</li>
-                  <li>🔁 Uso crescente do app → mais valor no cofre</li>
-                </ul>
+            <h4 className="text-base font-semibold text-capy-dark mb-2 mt-4">🎯 Resumo da Lógica</h4>
+            <div className="overflow-auto mb-4">
+              <table className="min-w-full text-sm text-capy-dark border border-capy-dark/10 rounded-lg">
+                <thead className="bg-white font-semibold">
+                  <tr>
+                    <th className="px-4 py-2 border-b">Ação do Usuário</th>
+                    <th className="px-4 py-2 border-b">Resultado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="bg-white/70">
+                    <td className="px-4 py-2 border-b">Staking de BRZ</td>
+                    <td className="px-4 py-2 border-b">Recebe BRcapy+</td>
+                  </tr>
+                  <tr className="bg-white/60">
+                    <td className="px-4 py-2 border-b">BRcapy+ rendendo</td>
+                    <td className="px-4 py-2 border-b">CDI + Receita do protocolo</td>
+                  </tr>
+                  <tr className="bg-white/70">
+                    <td className="px-4 py-2">Desstaking</td>
+                    <td className="px-4 py-2">Recebe BRZ + rendimento acumulado</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
-                <p className="text-capy-dark/70 text-sm mb-4">
-                  BRcapy+ começa valendo 1:1 com BRZ, mas se valoriza ao longo do tempo.
-                </p>
-
-                <h4 className="text-base font-semibold text-capy-dark mb-2 mt-4">🎯 Resumo da Lógica</h4>
-                <div className="overflow-auto mb-4">
-                  <table className="min-w-full text-sm text-capy-dark border border-capy-dark/10 rounded-lg">
-                    <thead className="bg-white font-semibold">
-                      <tr>
-                        <th className="px-4 py-2 border-b">Ação do Usuário</th>
-                        <th className="px-4 py-2 border-b">Resultado</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="bg-white/70">
-                        <td className="px-4 py-2 border-b">Staking de BRZ</td>
-                        <td className="px-4 py-2 border-b">Recebe BRcapy+</td>
-                      </tr>
-                      <tr className="bg-white/60">
-                        <td className="px-4 py-2 border-b">BRcapy+ rendendo</td>
-                        <td className="px-4 py-2 border-b">CDI + Receita do protocolo</td>
-                      </tr>
-                      <tr className="bg-white/70">
-                        <td className="px-4 py-2">Desstaking</td>
-                        <td className="px-4 py-2">Recebe BRZ + rendimento acumulado</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
+
 
     </main>
   );
