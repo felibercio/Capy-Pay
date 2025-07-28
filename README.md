@@ -12,7 +12,7 @@ Capy Pay é um Mini App desenvolvido para o ecossistema World que permite aos us
 - **Next.js 14** - Framework React
 - **TypeScript** - Tipagem estática
 - **Tailwind CSS** - Estilização
-- **MiniKit** - Integração com World App
+- **MiniKit** - Integração com Base App
 - **Base Network** - Blockchain Layer 2
 - **Wagmi** - Biblioteca Web3 para React
 
@@ -154,22 +154,10 @@ npm run tunnel       # Iniciar ngrok
 
 - Validação de entrada em todos os formulários
 - Sanitização de dados
-- Conexão segura via World ID
+- Conexão segura
 - Transações assinadas na blockchain
 
-## 📱 Testes no World App
 
-1. Configure o ngrok com seu domínio
-2. Registre o Mini App no World Developer Portal
-3. Use o QR code ou deep link para testar
-4. Teste em diferentes dispositivos
-
-## 🚀 Deploy
-
-### Vercel (Recomendado)
-```bash
-npm run build
-# Deploy via Vercel CLI ou GitHub integration
 ```
 
 ### Configurações de Produção
@@ -192,9 +180,6 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 ## 📞 Suporte
 
 Para dúvidas ou suporte, abra uma issue no GitHub ou entre em contato:
-- Email: dev@capypay.com
-- Discord: [World Developers](https://discord.gg/worldcoin)
+- Email: dev@capypay.com // felipearcega@gmail.com
 
 ---
-
-**Desenvolvido com ❤️ para o ecossistema World** 
