@@ -71,7 +71,7 @@ export default function TopMenu() {
       label: 'Meus Limites'
     },
     {
-      href: '/connect-wallet',
+      href: '/',
       icon: FiWifi,
       label: 'Carteira'
     }
@@ -91,4 +91,4 @@ export default function TopMenu() {
       </div>
     </div>
   );
-} 
+}

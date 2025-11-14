@@ -1,10 +1,14 @@
 const express = require('express');
+const { ethers } = require('ethers');
 const { body, param, query, validationResult } = require('express-validator');
 const BlockchainMonitorService = require('../services/BlockchainMonitorService');
 const SwapService = require('../services/SwapService');
 const logger = require('../utils/logger');
+const crypto = require('crypto');
 
 const router = express.Router();
+const CapyCoinMintService = require('../services/CapyCoinMintService');
+const capyMintService = new CapyCoinMintService();
 const blockchainMonitor = new BlockchainMonitorService();
 const swapService = new SwapService();
 
@@ -277,6 +281,39 @@ router.post('/swap/quote', [
 });
 
 /**
+ * POST /api/blockchain/mint-test
+ * Realiza um mint de CAPY para um endereço de teste
+ */
+router.post('/mint-test', [
+  body('to').isEthereumAddress().withMessage('Invalid recipient address'),
+  body('amount').optional().isFloat({ min: 0.000001 }).withMessage('Amount must be positive'),
+], handleValidationErrors, async (req, res) => {
+  try {
+    const { to, amount } = req.body;
+    const capyAmount = amount ?? 1;
+
+    const result = await capyMintService.mintToUser(to, capyAmount);
+    if (!result.success) {
+      return res.status(400).json({ success: false, error: result.error });
+    }
+
+    const explorer = 'https://sepolia.basescan.org/tx/' + result.txHash;
+    res.json({
+      success: true,
+      data: {
+        txHash: result.txHash,
+        explorerUrl: explorer,
+        amount: capyAmount,
+        to,
+      },
+    });
+  } catch (error) {
+    logger.error('Error in mint-test', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * POST /api/blockchain/swap/execute
  * Executa swap entre tokens
  */
@@ -376,6 +413,222 @@ router.post('/swap/execute', [
 });
 
 /**
+ * POST /api/blockchain/swap/execute/server
+ * Executa swap usando a wallet do servidor (BASE_PRIVATE_KEY)
+ */
+router.post('/swap/execute/server', [
+  body('fromToken')
+    .isIn(['USDC', 'BRZ', 'EURC'])
+    .withMessage('From token must be USDC, BRZ, or EURC'),
+  body('toToken')
+    .isIn(['USDC', 'BRZ', 'EURC'])
+    .withMessage('To token must be USDC, BRZ, or EURC'),
+  body('amount')
+    .isFloat({ min: 0.0001 })
+    .withMessage('Amount must be a positive number'),
+  body('maxPriceImpact')
+    .optional()
+    .isFloat({ min: 0, max: 50 })
+    .withMessage('Max price impact must be between 0 and 50'),
+], handleValidationErrors, async (req, res) => {
+  try {
+    const { fromToken, toToken, amount, maxPriceImpact = 5 } = req.body;
+
+    if (fromToken === toToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'From and to tokens cannot be the same',
+      });
+    }
+
+    const serverPrivateKey = process.env.BASE_PRIVATE_KEY;
+    if (!serverPrivateKey) {
+      return res.status(500).json({
+        success: false,
+        error: 'Server wallet not configured (missing BASE_PRIVATE_KEY)',
+      });
+    }
+
+    logger.info('Executing server-side swap', {
+      fromToken,
+      toToken,
+      amount,
+      maxPriceImpact,
+      ip: req.ip,
+    });
+
+    // Verificar viabilidade
+    const viabilityCheck = await swapService.isSwapViable(
+      fromToken,
+      toToken,
+      amount,
+      maxPriceImpact
+    );
+
+    if (!viabilityCheck.isViable) {
+      return res.status(400).json({
+        success: false,
+        error: `Swap not viable. Price impact: ${viabilityCheck.priceImpact}%, max allowed: ${maxPriceImpact}%`,
+        data: viabilityCheck,
+      });
+    }
+
+    const result = await swapService.executeSwap(
+      fromToken,
+      toToken,
+      amount,
+      serverPrivateKey,
+      {
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        timestamp: new Date().toISOString(),
+        executedBy: 'server',
+      }
+    );
+
+    if (result.success) {
+      res.status(201).json({
+        success: true,
+        message: 'Swap executed successfully (server wallet)',
+        data: {
+          txHash: result.txHash,
+          fromAmount: result.fromAmount,
+          toAmount: result.toAmount,
+          gasUsed: result.gasUsed,
+        },
+      });
+    } else {
+      res.status(400).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    logger.error('Error executing server-side swap', { error: error.message, stack: error.stack });
+    const dev = process.env.NODE_ENV === 'development';
+    res.status(500).json({
+      success: false,
+      error: dev ? error.message : 'Internal server error',
+      ...(dev ? { details: {
+        name: error.name,
+        message: error.message,
+        stack: error.stack?.split('\n').slice(0, 3).join('\n'),
+      } } : {}),
+    });
+  }
+});
+
+/**
+ * POST /api/blockchain/swap/execute/mock
+ * Executa swap mockado (sem transação onchain)
+ */
+router.post('/swap/execute/mock', [
+  body('fromToken')
+    .isIn(['USDC', 'BRZ', 'EURC'])
+    .withMessage('From token must be USDC, BRZ, or EURC'),
+  body('toToken')
+    .isIn(['USDC', 'BRZ', 'EURC'])
+    .withMessage('To token must be USDC, BRZ, or EURC'),
+  body('amount')
+    .isFloat({ min: 0.0001 })
+    .withMessage('Amount must be a positive number'),
+], handleValidationErrors, async (req, res) => {
+  try {
+    const { fromToken, toToken, amount } = req.body;
+
+    if (fromToken === toToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'From and to tokens cannot be the same',
+      });
+    }
+
+    // Obter melhor rota/cotação (em dev pode ser simulado)
+    let quote;
+    try {
+      quote = await swapService.getBestRoute(fromToken, toToken, amount);
+    } catch (err) {
+      // Fallback simples se a cotação falhar
+      quote = {
+        fromToken,
+        toToken,
+        fromAmount: amount,
+        toAmount: amount, // 1:1 como fallback
+        gasEstimate: '0',
+        route: [],
+      };
+    }
+
+    const txHash = '0x' + crypto.randomBytes(32).toString('hex');
+
+    return res.status(201).json({
+      success: true,
+      message: 'Swap executed successfully (mock)',
+      data: {
+        txHash,
+        fromAmount: quote.fromAmount,
+        toAmount: quote.toAmount,
+        gasUsed: '0',
+        mock: true,
+      },
+    });
+  } catch (error) {
+    logger.error('Error executing mock swap', { error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/blockchain/swap/simulate
+ * Atalho para simulação de swap (sempre mock, sem 1inch e sem onchain)
+ */
+router.post('/swap/simulate', [
+  body('fromToken')
+    .isIn(['USDC', 'BRZ', 'EURC'])
+    .withMessage('From token must be USDC, BRZ, or EURC'),
+  body('toToken')
+    .isIn(['USDC', 'BRZ', 'EURC'])
+    .withMessage('To token must be USDC, BRZ, or EURC'),
+  body('amount')
+    .isFloat({ min: 0.0001 })
+    .withMessage('Amount must be a positive number'),
+], handleValidationErrors, async (req, res) => {
+  try {
+    const { fromToken, toToken, amount } = req.body;
+
+    if (fromToken === toToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'From and to tokens cannot be the same',
+      });
+    }
+
+    // Calcular amount em base units para a cotação simulada
+    const fromDecimals = swapService.tokens[fromToken]?.decimals || 6;
+    const toDecimals = swapService.tokens[toToken]?.decimals || 6;
+    const amountWei = ethers.parseUnits(amount.toString(), fromDecimals);
+
+    // Cotação totalmente simulada, independente de env
+    const quote = swapService.getSimulatedQuoteBySymbols(fromToken, toToken, amountWei.toString());
+
+    const txHash = '0x' + crypto.randomBytes(32).toString('hex');
+    const toAmountHuman = ethers.formatUnits(quote.toAmount, toDecimals);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Swap simulated successfully',
+      data: {
+        txHash,
+        fromAmount: amount.toString(),
+        toAmount: toAmountHuman,
+        gasUsed: '0',
+        simulated: true,
+      },
+    });
+  } catch (error) {
+    logger.error('Error executing simulated swap', { error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * POST /api/blockchain/swap/price-impact
  * Calcula impacto de preço para swap
  */
@@ -466,4 +719,4 @@ router.get('/swaps', [
   }
 });
 
-module.exports = router; 
+module.exports = router;

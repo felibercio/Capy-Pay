@@ -51,6 +51,8 @@ const nextConfig = {
       },
     ];
   },
+
+  // Sem redirecionamento de /connect-wallet para permitir a nova página
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;

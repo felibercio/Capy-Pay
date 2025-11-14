@@ -3,10 +3,14 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../utils/logger');
+const CapyCoinMintService = require('./CapyCoinMintService');
+const SupabaseService = require('./SupabaseService');
 
 class StarkBankService {
   constructor() {
+    this.isConfigured = false;
     this.initializeStarkBank();
+    this.supa = new SupabaseService();
   }
 
   /**
@@ -20,11 +24,26 @@ class StarkBankService {
       const environment = process.env.STARKBANK_ENVIRONMENT || 'sandbox';
 
       if (!projectId || !privateKeyPath) {
-        throw new Error('StarkBank credentials not configured');
+        logger.warn('StarkBank credentials not configured. Payments routes will be disabled.', {
+          hasProjectId: !!projectId,
+          hasPrivateKeyPath: !!privateKeyPath,
+        });
+        this.isConfigured = false;
+        return; // Não bloquear inicialização do servidor
       }
 
       // Ler chave privada
-      const privateKeyContent = fs.readFileSync(path.resolve(privateKeyPath), 'utf8');
+      let privateKeyContent;
+      try {
+        privateKeyContent = fs.readFileSync(path.resolve(privateKeyPath), 'utf8');
+      } catch (err) {
+        logger.warn('StarkBank private key file not found or unreadable. Payments routes will be disabled.', {
+          path: privateKeyPath,
+          error: err.message,
+        });
+        this.isConfigured = false;
+        return;
+      }
 
       // Configurar usuário do StarkBank
       const user = new starkbank.Project({
@@ -39,9 +58,11 @@ class StarkBankService {
         environment,
         projectId,
       });
+      this.isConfigured = true;
     } catch (error) {
       logger.error('Failed to initialize StarkBank', { error: error.message });
-      throw error;
+      // Não lançar erro para não impedir a inicialização do servidor em ambientes de desenvolvimento
+      this.isConfigured = false;
     }
   }
 
@@ -52,7 +73,7 @@ class StarkBankService {
    * @param {string} userId - ID do usuário no sistema
    * @returns {Promise<Object>} Dados do PIX gerado
    */
-  async generatePixQrCode(value, description, userId) {
+  async generatePixQrCode(value, description, userId, userAddress) {
     try {
       logger.info('Generating PIX QR Code', { value, description, userId });
 
@@ -78,6 +99,7 @@ class StarkBankService {
         id: brcode.id,
         externalId: brcode.externalId,
         userId: userId,
+        userAddress: userAddress,
         amount: value,
         description: description,
         status: 'pending',
@@ -88,8 +110,8 @@ class StarkBankService {
         type: 'pix_deposit',
       };
 
-      // Placeholder para persistência
-      this.saveTransaction(transactionData);
+      // Persistir transação
+      await this.saveTransaction(transactionData);
 
       logger.info('PIX QR Code generated successfully', {
         id: brcode.id,
@@ -107,6 +129,7 @@ class StarkBankService {
           pixKey: brcode.uuid,
           amount: value,
           description: description,
+          userAddress: userAddress,
           expiresAt: transactionData.expiresAt,
           status: 'pending',
         },
@@ -117,6 +140,65 @@ class StarkBankService {
         value,
         userId,
       });
+
+      // Fallback dev: gerar QR Code PIX simulado quando houver erro
+      // Útil em ambientes locais sem credenciais StarkBank
+      const devFallback = process.env.NODE_ENV === 'development' || process.env.MOCK_PIX === 'true';
+      if (devFallback) {
+        try {
+          const mockId = `dev_pix_${uuidv4()}`;
+          const externalId = `capy-${userId}-${uuidv4()}`;
+          const qrUuid = uuidv4();
+          const expiresAt = new Date(Date.now() + 3600 * 1000);
+
+          // Não gerar imagem PNG inválida; deixar o frontend renderizar via SVG
+          // Usamos um conteúdo determinístico para o QR: externalId + amount
+          const qrContent = `PIX|ext:${externalId}|amt:${value}`;
+
+          const transactionData = {
+            id: mockId,
+            externalId,
+            userId: userId,
+            userAddress: userAddress,
+            amount: value,
+            description: description,
+            status: 'pending',
+            // Para ambientes dev, usamos qrContent como dado para o QR
+            qrCode: qrContent,
+            pixKey: qrUuid,
+            expiresAt,
+            createdAt: new Date(),
+            type: 'pix_deposit',
+          };
+
+          await this.saveTransaction(transactionData);
+
+          logger.warn('Using dev fallback for PIX QR Code generation', {
+            id: mockId,
+            externalId,
+            amount: value,
+          });
+
+          return {
+            success: true,
+            data: {
+              id: mockId,
+              externalId,
+              // Entregar apenas o dado do QR e deixar o front gerar a imagem
+              qrCode: qrContent,
+              qrCodeImage: null,
+              pixKey: qrUuid,
+              amount: value,
+              description: description,
+              userAddress: userAddress,
+              expiresAt,
+              status: 'pending',
+            },
+          };
+        } catch (fallbackErr) {
+          logger.error('Dev fallback for PIX QR generation failed', { error: fallbackErr.message });
+        }
+      }
 
       return {
         success: false,
@@ -301,9 +383,10 @@ class StarkBankService {
 
     if (type === 'credited') {
       // PIX foi recebido
-      const transactionId = brcode.externalId;
+      // Usar o ID do brcode como transactionId (mantemos id = brcode.id na criação)
+      const transactionId = brcode.id;
       
-      // TODO: Atualizar no banco de dados
+      // Atualizar status da transação
       await this.updateTransaction(transactionId, {
         status: 'completed',
         completedAt: new Date(),
@@ -315,7 +398,135 @@ class StarkBankService {
         amount: brcode.amount,
       });
 
-      // TODO: Notificar frontend via WebSocket ou similar
+      // Inserir depósito confirmado
+      try {
+        const tx = await this.getTransaction(transactionId);
+        if (tx && tx.user_id) {
+          await this.supa.insertDeposit({
+            transaction_id: transactionId,
+            user_id: tx.user_id,
+            method: 'pix',
+            amount: brcode.amount,
+            currency: 'BRL',
+            status: 'confirmed',
+            credited_at: new Date(),
+            description: 'PIX credit confirmed',
+            metadata: { brcode_id: brcode.id, external_id: brcode.externalId || null }
+          });
+
+          logger.info('Deposit recorded for PIX credit', {
+            transactionId,
+            userId: tx.user_id,
+            amount: brcode.amount,
+          });
+        } else {
+          logger.warn('Transaction not found to record deposit', { transactionId });
+        }
+      } catch (depErr) {
+        logger.error('Error inserting deposit record', { error: depErr.message, transactionId });
+      }
+
+      // Mintar CAPY com base no valor em BRL, se possível
+      try {
+        const tx = await this.getTransaction(transactionId);
+        const userAddress = tx?.userAddress;
+        const capyPerBrl = process.env.CAPY_PER_BRL ? Number(process.env.CAPY_PER_BRL) : null;
+
+        if (userAddress && capyPerBrl && !Number.isNaN(capyPerBrl)) {
+          const amountBRL = Number(brcode.amount) / 100; // converter centavos para reais
+          const capyAmount = amountBRL * capyPerBrl;
+
+          const mintService = new CapyCoinMintService();
+          const mintResult = await mintService.mintToUser(userAddress, capyAmount);
+
+          if (mintResult.success) {
+            await this.updateTransaction(transactionId, {
+              capyMint: {
+                capyAmount,
+                txHash: mintResult.txHash,
+                mintedAt: new Date(),
+              },
+            });
+
+            // Registrar mint no Supabase
+            await this.supa.insertCapyMint({
+              transaction_id: transactionId,
+              user_address: userAddress,
+              capy_amount: capyAmount,
+              tx_hash: mintResult.txHash,
+              minted_at: new Date(),
+            });
+
+            logger.info('CAPY minted for PIX deposit', {
+              transactionId,
+              userAddress,
+              capyAmount,
+              txHash: mintResult.txHash,
+            });
+          } else {
+            await this.updateTransaction(transactionId, {
+              capyMint: { error: mintResult.error, attemptedAt: new Date() },
+            });
+
+            logger.warn('CAPY mint failed', {
+              transactionId,
+              error: mintResult.error,
+            });
+          }
+        } else {
+          logger.warn('Skipping CAPY mint: missing userAddress or CAPY_PER_BRL', {
+            transactionId,
+            hasAddress: !!userAddress,
+            capyPerBrl,
+          });
+        }
+      } catch (mintError) {
+        logger.error('Error during CAPY mint integration', { error: mintError.message });
+      }
+
+      // Registrar depósito PIX onchain (evento), se configurado
+      try {
+        const DepositRegistryService = require('./DepositRegistryService');
+        const registry = new DepositRegistryService();
+        if (registry.isConfigured) {
+          const amountInCents = Number(brcode.amount);
+          const externalId = brcode.externalId || '';
+          const userAddress = (await this.getTransaction(transactionId))?.userAddress;
+
+          if (userAddress && amountInCents > 0) {
+            const regResult = await registry.recordPixDeposit(
+              String(brcode.id),
+              userAddress,
+              amountInCents,
+              externalId
+            );
+
+            if (regResult.success) {
+              await this.updateTransaction(transactionId, {
+                onchainRegistry: {
+                  txHash: regResult.txHash,
+                  recordedAt: new Date(),
+                },
+              });
+
+              logger.info('Onchain PIX deposit recorded', {
+                transactionId,
+                txHash: regResult.txHash,
+              });
+            } else {
+              logger.warn('Onchain PIX deposit registry failed', { error: regResult.error });
+            }
+          } else {
+            logger.warn('Skipping onchain registry: missing userAddress or amount');
+          }
+        } else {
+          logger.warn('DepositRegistryService not configured, skipping onchain registry');
+        }
+      } catch (registryError) {
+        logger.error('Error while recording PIX deposit onchain', { error: registryError.message });
+      }
+
+      // Notificar frontend via WebSocket ou similar
       await this.notifyTransactionUpdate(transactionId, 'completed');
     }
 
@@ -364,18 +575,41 @@ class StarkBankService {
    * @private
    */
   saveTransaction(transactionData) {
-    // TODO: Implementar persistência real
-    logger.info('Saving transaction (placeholder)', {
-      id: transactionData.id,
-      type: transactionData.type,
-      amount: transactionData.amount,
-    });
-    
-    // Em memória temporariamente
-    if (!global.transactions) {
-      global.transactions = new Map();
+    try {
+      const payload = {
+        id: transactionData.id,
+        external_id: transactionData.externalId || null,
+        user_id: transactionData.userId,
+        user_address: transactionData.userAddress || null,
+        type: transactionData.type,
+        amount: transactionData.amount,
+        description: transactionData.description || null,
+        status: transactionData.status,
+        qr_code: transactionData.qrCode || null,
+        pix_key: transactionData.pixKey || null,
+        expires_at: transactionData.expiresAt || null,
+        created_at: transactionData.createdAt || new Date(),
+        metadata: transactionData.metadata || null,
+      };
+
+      // In development or when Supabase admin is not configured, avoid throwing and
+      // simply return the payload so the flow continues for local testing.
+      const supa = this.supa;
+      const canPersist = supa && supa.isConfigured && supa.hasAdmin;
+      if (!canPersist) {
+        logger.warn('Supabase not configured or missing service role; skipping transaction persistence in dev', {
+          isConfigured: !!(supa && supa.isConfigured),
+          hasAdmin: !!(supa && supa.hasAdmin),
+        });
+        return payload; // non-blocking in local environments
+      }
+
+      return this.supa.insertTransaction(payload);
+    } catch (error) {
+      logger.error('Failed to save transaction', { error: error.message });
+      // In dev, do not block the flow
+      return null;
     }
-    global.transactions.set(transactionData.id, transactionData);
   }
 
   /**
@@ -383,15 +617,17 @@ class StarkBankService {
    * @private
    */
   async updateTransaction(transactionId, updates) {
-    // TODO: Implementar atualização real
-    logger.info('Updating transaction (placeholder)', {
-      transactionId,
-      updates,
-    });
-
-    if (global.transactions && global.transactions.has(transactionId)) {
-      const existing = global.transactions.get(transactionId);
-      global.transactions.set(transactionId, { ...existing, ...updates });
+    try {
+      const mapped = {
+        status: updates.status,
+        completed_at: updates.completedAt,
+        actual_amount: updates.actualAmount,
+        updated_at: new Date(),
+        metadata: updates.metadata || null,
+      };
+      return await this.supa.updateTransaction(transactionId, mapped);
+    } catch (error) {
+      logger.error('Failed to update transaction', { error: error.message });
     }
   }
 
@@ -412,12 +648,13 @@ class StarkBankService {
    * @param {string} transactionId - ID da transação
    * @returns {Object|null} Dados da transação
    */
-  getTransaction(transactionId) {
-    // TODO: Implementar busca real no banco
-    if (global.transactions && global.transactions.has(transactionId)) {
-      return global.transactions.get(transactionId);
+  async getTransaction(transactionId) {
+    try {
+      return await this.supa.getTransaction(transactionId);
+    } catch (error) {
+      logger.error('Failed to get transaction', { error: error.message });
+      return null;
     }
-    return null;
   }
 
   /**
@@ -425,16 +662,23 @@ class StarkBankService {
    * @param {string} userId - ID do usuário
    * @returns {Array} Lista de transações
    */
-  getUserTransactions(userId) {
-    // TODO: Implementar busca real no banco
-    if (!global.transactions) {
+  async getUserTransactions(userId) {
+    try {
+      return await this.supa.listTransactionsByUser(userId);
+    } catch (error) {
+      logger.error('Failed to list transactions', { error: error.message });
       return [];
     }
+  }
 
-    return Array.from(global.transactions.values())
-      .filter(tx => tx.userId === userId)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  async getCapyMintsByTransaction(transactionId) {
+    try {
+      return await this.supa.listCapyMintsByTransaction(transactionId);
+    } catch (error) {
+      logger.error('Failed to list CAPY mints', { error: error.message });
+      return [];
+    }
   }
 }
 
-module.exports = StarkBankService; 
+module.exports = StarkBankService;

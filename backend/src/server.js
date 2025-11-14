@@ -1,21 +1,46 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 
-// Import routes
-const authRoutes = require('./routes/auth');
-const coreRoutes = require('./routes/core');
-const tokenomicsRoutes = require('./routes/tokenomics');
-const referralRoutes = require('./routes/referral');
-const notificationsRoutes = require('./routes/notifications');
-const kycRoutes = require('./routes/kyc');
-const brcapyRoutes = require('./routes/brcapy');
-const demoRoutes = require('./routes/demo');
+// Import routes (safe in dev to avoid blocking startup)
+const safeRequire = (p) => {
+    try {
+        const mod = require(p);
+        console.log(`[DEBUG] Loaded route module: ${p}`);
+        return mod;
+    } catch (e) {
+        console.log(`[DEBUG] Failed to require route ${p}: ${e.message}`);
+        return null;
+    }
+};
+
+const authRoutes = safeRequire('./routes/auth');
+const coreRoutes = safeRequire('./routes/core');
+const tokenomicsRoutes = safeRequire('./routes/tokenomics');
+const referralRoutes = safeRequire('./routes/referral');
+const notificationsRoutes = safeRequire('./routes/notifications');
+const kycRoutes = safeRequire('./routes/kyc');
+const brcapyRoutes = safeRequire('./routes/brcapy');
+const paymentsRoutes = safeRequire('./routes/payments');
+const starkbankWebhookRoutes = safeRequire('./routes/webhooks');
+const demoRoutes = safeRequire('./routes/demo');
+const depositsRoutes = safeRequire('./routes/deposits');
+const blockchainRoutes = safeRequire('./routes/blockchain');
+const walletRoutes = safeRequire('./routes/wallets');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+console.log('[DEBUG] server.js start: app and PORT initialized');
+try {
+    const fs = require('fs');
+    fs.writeFileSync('logs/startup.marker', new Date().toISOString());
+    console.log('[DEBUG] wrote logs/startup.marker');
+} catch (e) {
+    console.log('[DEBUG] failed to write startup marker', e.message);
+}
 
 // Configure logger
 const logger = winston.createLogger({
@@ -138,14 +163,21 @@ app.get('/health', (req, res) => {
 });
 
 // API routes
-app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/core', coreRoutes);
-app.use('/api/tokenomics', tokenomicsRoutes);
-app.use('/api/referral', referralRoutes);
-app.use('/api/notifications', notificationLimiter, notificationsRoutes);
-app.use('/api/kyc', kycLimiter, kycRoutes);
-app.use('/api/brcapy', brcapyLimiter, brcapyRoutes);
-app.use('/api/demo', demoRoutes); // Demo routes for hackathon
+console.log('[DEBUG] mounting API routes...');
+if (authRoutes) app.use('/api/auth', authLimiter, authRoutes);
+if (coreRoutes) app.use('/api/core', coreRoutes);
+if (tokenomicsRoutes) app.use('/api/tokenomics', tokenomicsRoutes);
+if (referralRoutes) app.use('/api/referral', referralRoutes);
+if (notificationsRoutes) app.use('/api/notifications', notificationLimiter, notificationsRoutes);
+if (kycRoutes) app.use('/api/kyc', kycLimiter, kycRoutes);
+if (brcapyRoutes) app.use('/api/brcapy', brcapyLimiter, brcapyRoutes);
+if (paymentsRoutes) app.use('/api/payments', paymentsRoutes);
+if (starkbankWebhookRoutes) app.use('/api/starkbank', starkbankWebhookRoutes);
+if (depositsRoutes) app.use('/api/deposits', depositsRoutes);
+if (blockchainRoutes) app.use('/api/blockchain', blockchainRoutes);
+if (walletRoutes) app.use('/api/wallets', walletRoutes);
+if (demoRoutes) app.use('/api/demo', demoRoutes); // Demo routes for hackathon
+console.log('[DEBUG] API routes mounted');
 
 // Catch-all for API routes
 app.use('/api/*', (req, res) => {
@@ -204,6 +236,7 @@ process.on('SIGINT', () => {
 });
 
 // Start server
+console.log(`[DEBUG] Attempting to start server on port ${PORT}...`);
 const server = app.listen(PORT, () => {
     logger.info(`🐹 Capy Pay Backend Server running on port ${PORT}`, {
         port: PORT,
@@ -214,6 +247,16 @@ const server = app.listen(PORT, () => {
     logger.info('📡 Available API endpoints:', {
         endpoints: [
             'GET  /health - Health check',
+            'POST /api/payments/pix/generate - Generate PIX QR code',
+            'POST /api/payments/pix/simulate-credit - Simulate PIX credit (local)',
+            'POST /api/payments/bill/pay - Pay boleto',
+            'GET  /api/payments/transaction/:id - Get transaction',
+            'GET  /api/payments/transactions - List user transactions',
+            'GET  /api/deposits - List user deposits',
+            'GET  /api/payments/status - Payments service status',
+            'POST /api/starkbank/webhook - StarkBank webhook receiver',
+            'POST /api/starkbank/webhook/setup - Configure StarkBank webhook',
+            'GET  /api/starkbank/webhook/test - Test webhook endpoint',
             'POST /api/auth/login - Google OAuth login',
             'GET  /api/auth/profile - User profile',
             'GET  /api/auth/wallet/address - Wallet address',
@@ -250,4 +293,4 @@ const server = app.listen(PORT, () => {
     });
 });
 
-module.exports = app; 
+module.exports = app;

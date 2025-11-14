@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const winston = require('winston');
 const KYCService = require('./KYCService');
 const LimitService = require('./LimitService');
+const SupabaseService = require('./SupabaseService');
 
 /**
  * AuthService - Gerencia autenticação via Google OAuth e sessões JWT
@@ -25,6 +26,7 @@ class AuthService {
         // Inicializar serviços de compliance
         this.kycService = new KYCService();
         this.limitService = new LimitService(this.kycService);
+        this.supabaseService = new SupabaseService();
 
         // JWT configuration
         this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
@@ -183,6 +185,29 @@ class AuthService {
     }
 
     /**
+     * Compatibilidade com rotas: authenticateWithGoogle
+     * Empacota loginWithGoogle para retornar { user, accessToken, sessionId }
+     */
+    async authenticateWithGoogle(googleToken) {
+        const result = await this.loginWithGoogle(googleToken, {});
+        if (!result.success) {
+            return result;
+        }
+        const accessToken = result.tokens?.accessToken;
+        let sessionId = null;
+        try {
+            const decoded = jwt.verify(accessToken, this.jwtSecret);
+            sessionId = decoded.sessionId || null;
+        } catch (e) {}
+        return {
+            success: true,
+            user: result.user,
+            accessToken,
+            sessionId
+        };
+    }
+
+    /**
      * Cria novo usuário no sistema
      * @param {Object} userData - Dados do usuário
      * @param {Object} clientInfo - Informações do cliente
@@ -213,6 +238,13 @@ class AuthService {
 
         // Inicializar estruturas de compliance para novo usuário
         await this.initializeUserCompliance(userId, clientInfo);
+
+        // Persistir perfil do usuário no Supabase
+        try {
+            await this.supabaseService.upsertUserProfile(user);
+        } catch (error) {
+            this.logger.error('Erro ao persistir perfil no Supabase', { userId, error: error.message });
+        }
 
         return user;
     }
@@ -354,6 +386,20 @@ class AuthService {
         this.sessions.set(sessionId, sessionData);
         this.refreshTokens.set(refreshToken, user.id);
 
+        // Persistir sessão no Supabase
+        try {
+            await this.supabaseService.upsertSession({
+                id: sessionId,
+                user_id: user.id,
+                access_token: accessToken,
+                refresh_token: refreshToken,
+                created_at: sessionData.createdAt,
+                expires_at: sessionData.expiresAt
+            });
+        } catch (error) {
+            this.logger.error('Erro ao persistir sessão no Supabase', { sessionId, error: error.message });
+        }
+
         return {
             accessToken,
             refreshToken,
@@ -404,6 +450,103 @@ class AuthService {
                 error: 'Token inválido',
                 details: error.message
             };
+        }
+    }
+
+    /**
+     * Verifica token de acesso usando Supabase Auth e
+     * retorna usuário + payload padronizado para middlewares
+     * @param {string} token
+     */
+    async verifyAccessToken(token) {
+        try {
+            // Validar com Supabase Auth
+            const verification = await this.supabaseService.verifyAccessToken(token);
+            if (!verification.valid) {
+                // Fallback: aceitar JWT interno emitido por AuthService
+                try {
+                    const decoded = jwt.verify(token, this.jwtSecret);
+                    const user = {
+                        id: decoded.userId,
+                        email: decoded.email || null,
+                        name: null,
+                        picture: null,
+                        walletAddress: null,
+                        createdAt: null,
+                        providers: 'google'
+                    };
+                    return {
+                        valid: true,
+                        user,
+                        payload: {
+                            userId: decoded.userId,
+                            email: decoded.email || null,
+                            sessionId: decoded.sessionId || null,
+                        },
+                    };
+                } catch (e) {
+                    return { valid: false, error: verification.error };
+                }
+            }
+
+            const supaUser = verification.user;
+
+            // Carregar perfil persistido no Supabase (tabela users)
+            let profile = null;
+            try {
+                profile = await this.supabaseService.getUserProfileById(supaUser.id);
+            } catch (e) {
+                this.logger.warn('Supabase profile fetch failed', { userId: supaUser.id, error: e.message });
+            }
+
+            const user = {
+                id: supaUser.id,
+                email: supaUser.email,
+                name: (supaUser.user_metadata && (supaUser.user_metadata.name || supaUser.user_metadata.full_name)) || profile?.name || null,
+                picture: (supaUser.user_metadata && (supaUser.user_metadata.avatar_url || supaUser.user_metadata.picture)) || profile?.picture || null,
+                walletAddress: profile?.wallet_address || null,
+                createdAt: profile?.created_at || null,
+                providers: profile?.providers || (profile?.google_id ? 'google' : 'email'),
+            };
+
+            // Tentar localizar sessão no Supabase pelo access_token
+            let sessionRecord = null;
+            try {
+                sessionRecord = await this.supabaseService.findSessionByAccessToken(token);
+            } catch (e) {
+                this.logger.warn('Supabase session lookup failed', { error: e.message });
+            }
+
+            let sessionId = sessionRecord?.id || null;
+            if (!sessionId) {
+                // Persistir uma sessão vinculada ao token
+                const newSessionId = this.generateSessionId();
+                try {
+                    await this.supabaseService.upsertSession({
+                        id: newSessionId,
+                        user_id: supaUser.id,
+                        access_token: token,
+                        refresh_token: null,
+                        created_at: new Date().toISOString(),
+                    });
+                    sessionId = newSessionId;
+                } catch (e) {
+                    this.logger.warn('Supabase session upsert failed', { error: e.message });
+                }
+            }
+
+            return {
+                valid: true,
+                user,
+                payload: {
+                    userId: supaUser.id,
+                    email: supaUser.email,
+                    sessionId,
+                },
+            };
+        } catch (error) {
+            this.logger.error('verifyAccessToken error', { error: error.message });
+            return { valid: false, error: 'Token inválido' };
         }
     }
 
@@ -662,52 +805,131 @@ class AuthService {
     }
 
     /**
+     * Renova o access token usando Supabase Auth e retorna novo par de tokens
+     * @param {string} refreshToken - Refresh token atual
+     * @returns {Promise<Object>} - { success, accessToken, newRefreshToken, user }
+     */
+    async refreshAccessToken(refreshToken) {
+        try {
+            if (!refreshToken) {
+                return { success: false, error: 'Refresh token ausente' };
+            }
+
+            const session = await this.supabaseService.refreshSession(refreshToken);
+            if (!session || !session.access_token) {
+                return { success: false, error: 'Falha ao renovar sessão' };
+            }
+
+            const accessToken = session.access_token;
+            const newRefreshToken = session.refresh_token || refreshToken;
+
+            const verification = await this.supabaseService.verifyAccessToken(accessToken);
+            if (!verification.valid) {
+                return { success: false, error: verification.error || 'Token inválido após refresh' };
+            }
+
+            const supaUser = verification.user;
+            let profile = null;
+            try {
+                profile = await this.supabaseService.getUserProfileById(supaUser.id);
+            } catch (e) {
+                this.logger.warn('Falha ao obter perfil Supabase no refresh', { userId: supaUser.id, error: e.message });
+            }
+
+            try {
+                await this.supabaseService.upsertSession({
+                    id: verification.payload.sessionId || this.generateSessionId(),
+                    user_id: supaUser.id,
+                    access_token: accessToken,
+                    refresh_token: newRefreshToken,
+                    created_at: new Date().toISOString(),
+                });
+            } catch (e) {
+                this.logger.warn('Falha ao atualizar sessão no Supabase (refresh)', { error: e.message });
+            }
+
+            const user = {
+                id: supaUser.id,
+                email: supaUser.email,
+                name: (supaUser.user_metadata && (supaUser.user_metadata.name || supaUser.user_metadata.full_name)) || profile?.name || null,
+                picture: (supaUser.user_metadata && (supaUser.user_metadata.avatar_url || supaUser.user_metadata.picture)) || profile?.picture || null,
+                walletAddress: profile?.wallet_address || null,
+                createdAt: profile?.created_at || null,
+            };
+
+            let kycStatus = null;
+            try {
+                const kyc = await this.kycService.checkUserKYCStatus(user.id);
+                if (kyc && kyc.success) {
+                    kycStatus = kyc;
+                }
+            } catch (e) {
+                this.logger.warn('Falha ao carregar KYC no refresh', { error: e.message });
+            }
+
+            return {
+                success: true,
+                accessToken,
+                newRefreshToken,
+                user: { ...user, kycStatus },
+            };
+        } catch (error) {
+            this.logger.error('Erro no refreshAccessToken', { error: error.message });
+            return { success: false, error: 'Erro ao renovar token' };
+        }
+    }
+
+    /**
      * Logout do usuário (invalidar sessão)
      * @param {string} sessionId - ID da sessão
      * @returns {Object} - Resultado do logout
      */
     async logout(sessionId) {
         try {
-            const session = this.sessions.get(sessionId);
+            let session = null;
+            try {
+                session = await this.supabaseService.getSessionById(sessionId);
+            } catch (e) {
+                this.logger.warn('Supabase getSessionById falhou', { sessionId, error: e.message });
+            }
+
             if (!session) {
-                return {
-                    success: false,
-                    error: 'Sessão não encontrada'
-                };
+                session = this.sessions.get(sessionId);
+            }
+            if (!session) {
+                return { success: false, error: 'Sessão não encontrada' };
             }
 
-            // Invalidar sessão
-            session.isActive = false;
-            session.loggedOutAt = new Date().toISOString();
-            this.sessions.set(sessionId, session);
+            const userId = session.user_id || session.userId;
 
-            // Remover refresh token
-            if (session.refreshToken) {
-                this.refreshTokens.delete(session.refreshToken);
+            const revoke = await this.supabaseService.invalidateRefreshTokens(userId);
+            if (!revoke.success) {
+                this.logger.warn('Invalidate refresh tokens não disponível ou falhou', { userId, error: revoke.error });
             }
 
-            this.logger.info('User logged out', {
-                userId: session.userId,
-                sessionId
-            });
+            try {
+                await this.supabaseService.deleteSession(sessionId);
+            } catch (e) {
+                this.logger.warn('Falha ao deletar sessão no Supabase', { sessionId, error: e.message });
+            }
 
-            return {
-                success: true,
-                message: 'Logout realizado com sucesso'
-            };
+            const memSession = this.sessions.get(sessionId);
+            if (memSession) {
+                memSession.isActive = false;
+                memSession.loggedOutAt = new Date().toISOString();
+                this.sessions.set(sessionId, memSession);
+                if (memSession.refreshToken) {
+                    this.refreshTokens.delete(memSession.refreshToken);
+                }
+            }
 
+            this.logger.info('User logged out', { userId, sessionId });
+            return { success: true, message: 'Logout realizado com sucesso' };
         } catch (error) {
-            this.logger.error('Error during logout', {
-                sessionId,
-                error: error.message
-            });
-
-            return {
-                success: false,
-                error: 'Erro durante logout'
-            };
+            this.logger.error('Error during logout', { sessionId, error: error.message });
+            return { success: false, error: 'Erro durante logout' };
         }
     }
 }
 
-module.exports = AuthService; 
+module.exports = AuthService;

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useMiniKit, useNotification, useAddFrame } from '@worldcoin/minikit-js';
 import { Button } from './Button';
 import { Card, CardContent } from './Card';
 
@@ -18,17 +17,16 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
   userId,
   accessToken
 }) => {
-  const { isReady, context } = useMiniKit();
-  const { sendNotification } = useNotification();
-  const { addFrame } = useAddFrame();
+  // Stubs locais para testes sem MiniKit
+  const isReady = true;
   
   const [credentials, setCredentials] = useState<NotificationCredentials | null>(null);
   const [testNotificationSent, setTestNotificationSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Verificar se o frame foi adicionado
-  const isFrameAdded = context?.client?.added || false;
+  // Verificar se o frame foi adicionado (estado local)
+  const isFrameAdded = credentials?.isFrameAdded || false;
 
   // Salvar credenciais de notificação no backend quando frame é adicionado
   const saveNotificationCredentials = async (url: string, token: string) => {
@@ -87,42 +85,24 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
 
   // Monitorar mudanças no estado do frame
   useEffect(() => {
-    if (isFrameAdded && context?.client?.url && context?.client?.token) {
-      const url = context.client.url;
-      const token = context.client.token;
-      
-      // Salvar credenciais no backend
-      saveNotificationCredentials(url, token);
-      
-      // Atualizar estado local
-      setCredentials({
-        url,
-        token,
-        isFrameAdded: true
-      });
-    }
-  }, [isFrameAdded, context?.client, userId, accessToken]);
+    // Sem MiniKit: não há contexto externo para monitorar
+  }, [isFrameAdded, userId, accessToken]);
 
   const handleAddFrame = async () => {
-    if (!addFrame) {
-      setError('AddFrame não disponível');
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
       
-      const result = await addFrame();
-      
-      if (result?.url && result?.token) {
-        await saveNotificationCredentials(result.url, result.token);
-        setCredentials({
-          url: result.url,
-          token: result.token,
-          isFrameAdded: true
-        });
-      }
+      // Simular adição de frame para testes locais
+      const mockUrl = 'https://minikit.local/frame';
+      const mockToken = 'mock_token_for_tests';
+
+      await saveNotificationCredentials(mockUrl, mockToken);
+      setCredentials({
+        url: mockUrl,
+        token: mockToken,
+        isFrameAdded: true
+      });
     } catch (err) {
       console.error('Erro ao adicionar frame:', err);
       setError('Não foi possível adicionar o frame');
@@ -132,26 +112,11 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
   };
 
   const handleSendTestNotification = async () => {
-    if (!sendNotification) {
-      setError('Notificações não disponíveis');
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
 
-      // Enviar notificação via MiniKit
-      await sendNotification({
-        title: '🐹 Capy Pay Test',
-        body: 'Esta é uma notificação de teste do Capy Pay! Você receberá alertas sobre recompensas de referência aqui.',
-        icon: '/capy-icon.png',
-        data: {
-          type: 'test',
-          timestamp: new Date().toISOString()
-        }
-      });
-
+      // Simular envio de notificação para testes locais
       setTestNotificationSent(true);
       
       // Também registrar no backend para analytics
@@ -318,4 +283,4 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
       </CardContent>
     </Card>
   );
-}; 
+};

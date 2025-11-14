@@ -738,7 +738,7 @@ contract CapyCoinHybrid is ERC20, ERC20Burnable, AccessControl, Pausable, Reentr
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC20, AccessControl)
+        override(AccessControl)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);

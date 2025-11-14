@@ -1,14 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  useMiniKit, 
-  usePrimaryButton, 
-  useClose,
-  useAddFrame,
-  useViewProfile,
-  useOpenUrl 
-} from '@worldcoin/minikit-js';
 
 // Import all screen components
 import { HomeScreen } from '@/components/screens/HomeScreen';
@@ -22,7 +14,7 @@ import { NotificationManager } from '@/components/NotificationManager';
 type Screen = 'home' | 'swap' | 'payBill' | 'transactions' | 'referral' | 'points';
 
 export default function Home() {
-  const { isReady } = useMiniKit();
+  const isReady = true;
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   
   // Mock authentication data - in real app, this would come from auth context
@@ -40,12 +32,12 @@ export default function Home() {
     referralLink: 'capypay.app/refe...'
   });
 
-  // MiniKit hooks integration
-  const { setPrimaryButton } = usePrimaryButton();
-  const { close } = useClose();
-  const { addFrame } = useAddFrame();
-  const { viewProfile } = useViewProfile();
-  const { openUrl } = useOpenUrl();
+  // MiniKit hooks substituídos por stubs para testes locais
+  const setPrimaryButton = (_opts?: any) => {};
+  const close = () => {};
+  const addFrame = () => {};
+  const viewProfile = () => {};
+  const openUrl = (url: string) => { try { window.open(url, '_blank'); } catch (_) {} };
 
   // Configure primary button based on current screen
   useEffect(() => {
@@ -257,4 +249,4 @@ export default function Home() {
       </div>
     </div>
   );
-} 
+}

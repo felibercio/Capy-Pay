@@ -118,7 +118,7 @@ router.post('/google-login', [
         userId: user.id,
       });
 
-      const walletResult = await walletService.createWalletForUser(user.id);
+      const walletResult = await walletService.createWalletForUser(user.id, { authToken: accessToken, provider: 'google' });
       if (walletResult.success) {
         walletAddress = walletResult.wallet.address;
         user.walletAddress = walletAddress;
@@ -144,6 +144,36 @@ router.post('/google-login', [
       walletAddress,
       sessionId,
     });
+
+    // Persistir perfil com providers='google' via RLS quando possível
+    try {
+      await authService.supabaseService.upsertUserProfileWithUserToken({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        googleId: user.googleId || user.id,
+        walletAddress: walletAddress || user.walletAddress || null,
+        providers: 'google',
+        createdAt: user.createdAt,
+      }, accessToken);
+    } catch (e) {
+      logger.warn('Profile upsert via RLS failed; attempting admin fallback', { error: e.message });
+      try {
+        await authService.supabaseService.upsertUserProfile({
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+          googleId: user.googleId || user.id,
+          walletAddress: walletAddress || user.walletAddress || null,
+          providers: 'google',
+          createdAt: user.createdAt,
+        });
+      } catch (adminErr) {
+        logger.warn('Admin profile upsert also failed', { error: adminErr.message });
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -175,6 +205,97 @@ router.post('/google-login', [
       success: false,
       error: 'Internal server error',
     });
+  }
+});
+
+/**
+ * POST /api/auth/email-login/complete
+ * Finaliza login de email/senha (feito no frontend via Supabase) garantindo criação de carteira
+ */
+router.post('/email-login/complete', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    logger.info('Email login completion request', { userId });
+
+    // Criar carteira custodial se não existir
+    let walletAddress = req.user.walletAddress || null;
+    if (!walletAddress) {
+      logger.info('Creating custodial wallet for email user', { userId });
+      const authHeader = req.headers.authorization || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+      const walletResult = await walletService.createWalletForUser(userId, { authToken: token, provider: 'email' });
+      if (!walletResult.success) {
+        return res.status(500).json({ success: false, error: walletResult.error || 'Failed to create wallet' });
+      }
+      walletAddress = walletResult.wallet.address;
+
+      // Telemetria: carteira criada via fluxo email-login
+      try {
+        observability.recordWalletCreated('email', 'base', userId, walletAddress);
+      } catch (e) {}
+    }
+
+    // Upsert de perfil com providers = 'email' e wallet atualizada
+    try {
+      await authService.supabaseService.upsertUserProfileWithUserToken({
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name,
+        picture: req.user.picture,
+        googleId: null,
+        walletAddress: walletAddress,
+        providers: 'email',
+        createdAt: req.user.createdAt,
+      }, token);
+    } catch (upErr) {
+      logger.warn('Falha ao atualizar perfil do usuário com providers=email (RLS)', {
+        userId,
+        error: upErr.message,
+      });
+      // Admin fallback
+      try {
+        await authService.supabaseService.upsertUserProfile({
+          id: req.user.id,
+          email: req.user.email,
+          name: req.user.name,
+          picture: req.user.picture,
+          googleId: null,
+          walletAddress: walletAddress,
+          providers: 'email',
+          createdAt: req.user.createdAt,
+        });
+      } catch (adminErr) {
+        logger.warn('Fallback admin upsert falhou', { error: adminErr.message });
+      }
+    }
+
+    // Perfil consolidado
+    const balanceResult = await walletService.getWalletBalance(userId);
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: req.user.id,
+          email: req.user.email,
+          name: req.user.name,
+          picture: req.user.picture,
+          walletAddress,
+          createdAt: req.user.createdAt,
+        },
+        wallet: balanceResult.success ? {
+          address: walletAddress,
+          balances: balanceResult.balances,
+        } : {
+          address: walletAddress,
+          balances: null,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Email login completion error', { error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -413,13 +534,43 @@ router.post('/logout', requireAuth, [
 router.get('/wallet/address', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
 
     const walletAddress = await walletService.getWalletAddress(userId);
 
     if (!walletAddress) {
-      return res.status(404).json({
-        success: false,
-        error: 'Wallet not found for user',
+      // Auto-provisionar carteira no primeiro acesso
+      const provider = req.user?.providers || (req.user?.googleId ? 'google' : 'email');
+      const createResult = await walletService.createWalletForUser(userId, { authToken: token, provider });
+      if (!createResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: createResult.error || 'Failed to create wallet',
+        });
+      }
+      const createdAddress = createResult.wallet.address;
+
+      // Telemetria: carteira criada
+      try {
+        observability.recordWalletCreated(provider, 'base', req.user.id, createdAddress);
+        const log = createLogger(req.correlationId, 'wallet');
+        log.info('Custodial wallet auto-provisioned', {
+          userId: req.user.id,
+          provider,
+          network: 'base',
+          address: createdAddress,
+        });
+      } catch (teleErr) {
+        logger.warn('Wallet creation telemetry failed', { error: teleErr.message });
+      }
+      return res.json({
+        success: true,
+        data: {
+          address: createdAddress,
+          network: 'base',
+          created: true,
+        },
       });
     }
 
@@ -428,6 +579,7 @@ router.get('/wallet/address', requireAuth, async (req, res) => {
       data: {
         address: walletAddress,
         network: 'base',
+        created: false,
       },
     });
 
@@ -609,5 +761,38 @@ router.get('/stats', async (req, res) => {
     });
   }
 });
+/**
+ * POST /api/auth/telemetry/event
+ * Registra eventos de telemetria (primeiro acesso, etc.)
+ */
+router.post('/telemetry/event', requireAuth, [
+  body('eventType')
+    .isIn(['dashboard_first_access'])
+    .withMessage('Invalid event type'),
+  body('source')
+    .optional()
+    .isString()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Source must be a short string')
+], handleValidationErrors, async (req, res) => {
+  try {
+    const { eventType, source } = req.body;
+    const provider = req.user?.providers || (req.user?.googleId ? 'google' : 'email');
+    const userId = req.user?.id;
 
-module.exports = router; 
+    const log = createLogger(req.correlationId, 'telemetry');
+    if (eventType === 'dashboard_first_access') {
+      try {
+        observability.recordFirstAccess(source || 'dashboard', provider, userId);
+      } catch (e) {}
+      log.info('First dashboard access telemetry', { userId, provider, source: source || 'dashboard' });
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    logger.error('Telemetry event error', { error: error.message });
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+module.exports = router;

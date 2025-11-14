@@ -1,0 +1,16 @@
+{
+  "name": "capy-pay-contracts-deployer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy:hybrid": "node scripts/deploy-hybrid.js",
+    "deploy:registry": "node scripts/deploy-deposit-registry.js"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.1",
+    "solc": "^0.8.24"
+  }
+}

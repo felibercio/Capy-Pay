@@ -21,22 +21,7 @@ const os = require('os');
  */
 class ObservabilityService {
     constructor() {
-        // Inicializar sistema de logging
-        this.initializeLogging();
-        
-        // Inicializar coleta de métricas
-        this.initializeMetrics();
-        
-        // Configurar rastreamento distribuído
-        this.initializeTracing();
-        
-        // Configurar sistema de alertas
-        this.initializeAlerting();
-        
-        // Armazenar traces ativos
-        this.activeTraces = new Map();
-        
-        // Configurações de observabilidade
+        // Configurações de observabilidade (definir antes das inicializações)
         this.config = {
             serviceName: 'capy-pay',
             environment: process.env.NODE_ENV || 'development',
@@ -75,6 +60,21 @@ class ObservabilityService {
                 }
             }
         };
+
+        // Inicializar sistema de logging
+        this.initializeLogging();
+        
+        // Inicializar coleta de métricas
+        this.initializeMetrics();
+        
+        // Configurar rastreamento distribuído
+        this.initializeTracing();
+        
+        // Configurar sistema de alertas
+        this.initializeAlerting();
+        
+        // Armazenar traces ativos
+        this.activeTraces = new Map();
 
         this.logger.info('ObservabilityService initialized', {
             serviceName: this.config.serviceName,
@@ -310,6 +310,21 @@ class ObservabilityService {
                 registers: [this.metricsRegistry]
             }),
 
+            // Wallet events
+            walletCreatedTotal: new prometheus.Counter({
+                name: 'capypay_wallet_created_total',
+                help: 'Total of custodial wallet creations',
+                labelNames: ['provider', 'network'],
+                registers: [this.metricsRegistry]
+            }),
+
+            firstAccessTotal: new prometheus.Counter({
+                name: 'capypay_first_access_total',
+                help: 'Total of first dashboard access events',
+                labelNames: ['source', 'provider'],
+                registers: [this.metricsRegistry]
+            }),
+
             // Erros
             errorsTotal: new prometheus.Counter({
                 name: 'capypay_errors_total',
@@ -464,6 +479,7 @@ class ObservabilityService {
 
             // Capturar fim da response
             const originalSend = res.send;
+            const svc = this; // preservar contexto do serviço
             res.send = function(data) {
                 const duration = Date.now() - startTime;
                 
@@ -473,16 +489,16 @@ class ObservabilityService {
                 span.tags['http.response_size'] = Buffer.byteLength(data || '');
                 
                 // Métricas
-                this.metrics.httpRequestDuration
+                svc.metrics.httpRequestDuration
                     .labels(req.method, req.route?.path || req.path, res.statusCode)
                     .observe(duration / 1000);
                 
-                this.metrics.httpRequestsTotal
+                svc.metrics.httpRequestsTotal
                     .labels(req.method, req.route?.path || req.path, res.statusCode)
                     .inc();
 
                 // Log fim da request
-                this.logger.info('HTTP Request completed', {
+                svc.logger.info('HTTP Request completed', {
                     correlationId,
                     method: req.method,
                     url: req.originalUrl,
@@ -493,13 +509,13 @@ class ObservabilityService {
                 });
 
                 // Finalizar span
-                this.tracing.finishSpan(span, status);
-                this.activeTraces.delete(correlationId);
+                svc.tracing.finishSpan(span, status);
+                svc.activeTraces.delete(correlationId);
 
                 // Verificar se precisa alertar
                 if (res.statusCode >= 500) {
-                    this.sendAlert({
-                        severity: this.alerting.severity.HIGH,
+                    svc.sendAlert({
+                        severity: svc.alerting.severity.HIGH,
                         title: `HTTP 5xx Error - ${req.method} ${req.path}`,
                         message: `Status: ${res.statusCode}, Duration: ${duration}ms`,
                         correlationId,
@@ -512,8 +528,9 @@ class ObservabilityService {
                     });
                 }
 
-                return originalSend.call(this, data);
-            }.bind(this);
+                // Importante: chamar originalSend com contexto do objeto res
+                return originalSend.call(res, data);
+            };
 
             next();
         };
@@ -609,6 +626,41 @@ class ObservabilityService {
             network,
             operation,
             status
+        });
+    }
+
+    /**
+     * Registra evento de criação de carteira custodial
+     */
+    recordWalletCreated(provider = 'unknown', network = 'unknown', userId = null, walletAddress = null) {
+        try {
+            this.metrics.walletCreatedTotal
+                .labels(provider, network)
+                .inc();
+        } catch (e) {}
+
+        this.logger.info('Wallet created', {
+            provider,
+            network,
+            userId,
+            walletAddress
+        });
+    }
+
+    /**
+     * Registra evento de primeiro acesso ao dashboard
+     */
+    recordFirstAccess(source = 'dashboard', provider = 'unknown', userId = null) {
+        try {
+            this.metrics.firstAccessTotal
+                .labels(source, provider)
+                .inc();
+        } catch (e) {}
+
+        this.logger.info('First access recorded', {
+            source,
+            provider,
+            userId
         });
     }
 
@@ -943,4 +995,4 @@ class ObservabilityService {
     }
 }
 
-module.exports = ObservabilityService; 
+module.exports = ObservabilityService;

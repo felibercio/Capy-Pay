@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import '@coinbase/onchainkit/styles.css';
+
 /* Variáveis CSS Customizadas do Capy Pay */
 :root {
   --capy-teal: #14b8a6;
@@ -160,4 +162,4 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--capy-dark-teal);
-} 
+}

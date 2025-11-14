@@ -2,6 +2,7 @@ const { ethers } = require('ethers');
 const crypto = require('crypto');
 const CryptoJS = require('crypto-js');
 const logger = require('../utils/logger');
+const SupabaseService = require('./SupabaseService');
 
 class WalletService {
   constructor() {
@@ -11,14 +12,32 @@ class WalletService {
       encryptionKey: process.env.WALLET_ENCRYPTION_KEY,
       salt: process.env.WALLET_SALT,
       kmsKeyId: process.env.KMS_KEY_ID,
-      rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
+      // Preferir Base Sepolia em desenvolvimento
+      rpcUrl:
+        process.env.BASE_RPC_URL ||
+        process.env.BASE_TESTNET_RPC_URL ||
+        'https://sepolia.base.org',
     };
 
-    // Verificar configuração de segurança
+    // Estado de configuração
+    this.isConfigured = true;
+
+    // Verificar configuração de segurança (não bloquear inicialização em dev)
     this.validateSecurityConfig();
 
     // Inicializar provider
     this.provider = new ethers.JsonRpcProvider(this.config.rpcUrl);
+
+    // Supabase para persistir perfil
+    try {
+      this.supabase = new SupabaseService();
+    } catch (e) {
+      logger.warn('SupabaseService init failed in WalletService', { error: e.message });
+      this.supabase = null;
+    }
+
+    // Sem integração com Coinbase Managed Wallets (requisito: solução local não-custodial)
+    this.coinbase = null;
 
     // Cache de carteiras descriptografadas (apenas em memória, nunca persistir)
     this.walletCache = new Map();
@@ -35,28 +54,31 @@ class WalletService {
    */
   validateSecurityConfig() {
     if (!this.config.encryptionKey) {
-      throw new Error('WALLET_ENCRYPTION_KEY is required for wallet security');
-    }
-
-    if (this.config.encryptionKey.length < 32) {
-      throw new Error('WALLET_ENCRYPTION_KEY must be at least 32 characters');
+      logger.warn('WALLET_ENCRYPTION_KEY is not set; custodial wallet features disabled');
+      this.isConfigured = false;
+    } else if (this.config.encryptionKey.length < 32) {
+      logger.warn('WALLET_ENCRYPTION_KEY must be at least 32 characters; disabling wallet features');
+      this.isConfigured = false;
     }
 
     if (!this.config.salt) {
-      throw new Error('WALLET_SALT is required for wallet security');
+      logger.warn('WALLET_SALT is not set; custodial wallet features disabled');
+      this.isConfigured = false;
     }
 
-    logger.info('Wallet security configuration validated');
+    if (this.isConfigured) {
+      logger.info('Wallet security configuration validated');
+    }
   }
 
   /**
-   * Cria carteira custodial para usuário
+   * Cria carteira local não-custodial para usuário
    * @param {string} userId - ID do usuário
    * @returns {Promise<Object>} Dados da carteira criada
    */
-  async createWalletForUser(userId) {
+  async createWalletForUser(userId, options = {}) {
     try {
-      logger.info('Creating custodial wallet for user', { userId });
+      logger.info('Creating local non-custodial wallet for user', { userId });
 
       // Verificar se usuário já possui carteira
       const existingWallet = await this.getWalletByUserId(userId);
@@ -68,16 +90,17 @@ class WalletService {
         };
       }
 
-      // 1. Gerar novo par de chaves
+      // Gerar novo par de chaves localmente
       const wallet = ethers.Wallet.createRandom();
       
       logger.info('New wallet generated', {
         userId,
         address: wallet.address,
+        createdVia: 'local-non-custodial',
       });
 
-      // 2. Criptografar chave privada
-      const encryptedPrivateKey = await this.encryptPrivateKey(wallet.privateKey, userId);
+      // 2. Não custodiar chave privada (requisito: não-custodial)
+      const encryptedPrivateKey = null;
 
       // 3. Criar registro da carteira
       const walletData = {
@@ -89,7 +112,7 @@ class WalletService {
         updatedAt: new Date(),
         status: 'active',
         network: 'base',
-        type: 'custodial',
+        type: 'non-custodial',
         // Metadados de segurança
         encryptionVersion: '1.0',
         keyDerivationRounds: 100000,
@@ -99,26 +122,26 @@ class WalletService {
       await this.saveWallet(walletData);
 
       // 5. Atualizar usuário com endereço da carteira
-      await this.updateUserWallet(userId, wallet.address);
+      await this.updateUserWallet(userId, walletData.address, options);
 
-      logger.info('Custodial wallet created successfully', {
+      logger.info('Non-custodial wallet created successfully', {
         userId,
         walletId: walletData.id,
-        address: wallet.address,
+        address: walletData.address,
       });
 
       return {
         success: true,
         wallet: {
           id: walletData.id,
-          address: wallet.address,
+          address: walletData.address,
           network: walletData.network,
           createdAt: walletData.createdAt,
         },
       };
 
     } catch (error) {
-      logger.error('Failed to create custodial wallet', {
+      logger.error('Failed to create non-custodial wallet', {
         error: error.message,
         stack: error.stack,
         userId,
@@ -163,6 +186,10 @@ class WalletService {
    */
   async signTransaction(userId, transaction) {
     try {
+      // Em modo não-custodial, o backend não assina transações
+      if (!this.isConfigured) {
+        logger.warn('WalletService not fully configured; signing may be disabled', { userId });
+      }
       logger.info('Signing transaction for user', {
         userId,
         to: transaction.to,
@@ -173,6 +200,10 @@ class WalletService {
       const walletData = await this.getWalletByUserId(userId);
       if (!walletData) {
         throw new Error('Wallet not found for user');
+      }
+
+      if (!walletData.encryptedPrivateKey) {
+        throw new Error('Non-custodial wallet: server-side signing disabled');
       }
 
       // 2. Descriptografar chave privada
@@ -488,13 +519,31 @@ class WalletService {
    * Atualiza usuário com endereço da carteira
    * @private
    */
-  async updateUserWallet(userId, walletAddress) {
+  async updateUserWallet(userId, walletAddress, options = {}) {
     // TODO: Implementar atualização real do usuário
     if (global.users && global.users.has(userId)) {
       const user = global.users.get(userId);
       user.walletAddress = walletAddress;
       user.updatedAt = new Date();
       global.users.set(userId, user);
+    }
+
+    // Persistir no Supabase para futuros acessos
+    try {
+      if (this.supabase && this.supabase.isConfigured) {
+        const token = options?.authToken || null;
+        if (token) {
+          await this.supabase.updateUserWalletAddressWithUserToken(userId, walletAddress, token);
+          logger.info('User wallet address persisted to Supabase via RLS', { userId, walletAddress });
+        } else if (this.supabase.hasAdmin) {
+          await this.supabase.updateUserWalletAddress(userId, walletAddress);
+          logger.info('User wallet address persisted to Supabase (admin)', { userId, walletAddress });
+        } else {
+          logger.warn('Supabase write skipped: no user token and no admin key');
+        }
+      }
+    } catch (e) {
+      logger.warn('Failed to persist wallet_address to Supabase', { userId, error: e.message });
     }
   }
 
@@ -563,4 +612,4 @@ class WalletService {
   }
 }
 
-module.exports = WalletService; 
+module.exports = WalletService;

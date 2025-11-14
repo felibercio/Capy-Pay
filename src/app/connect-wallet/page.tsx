@@ -1,140 +1,183 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { FiArrowLeft, FiWifi, FiShield, FiCheck, FiArrowRight } from 'react-icons/fi';
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { BrowserProvider } from "ethers";
+import { connectCoinbaseWallet, getCoinbaseProvider } from "../../lib/coinbaseWallet";
+import { useRouter } from "next/navigation";
 
 export default function ConnectWalletPage() {
-  const walletOptions = [
-    {
-      id: 'metamask',
-      name: 'MetaMask',
-      description: 'Conectar com MetaMask',
-      icon: '🦊',
-      popular: true
-    },
-    {
-      id: 'walletconnect',
-      name: 'WalletConnect',
-      description: 'Escanear com carteira mobile',
-      icon: '📱',
-      popular: false
-    },
-    {
-      id: 'coinbase',
-      name: 'Coinbase Wallet',
-      description: 'Conectar com Coinbase',
-      icon: '🔵',
-      popular: false
+  const router = useRouter();
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletType, setWalletType] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const addr = localStorage.getItem("walletAddress");
+      const type = localStorage.getItem("walletType");
+      if (addr) setWalletAddress(addr);
+      if (type) setWalletType(type);
+    } catch {}
+  }, []);
+
+  const saveWalletLocally = (address: string, type: string) => {
+    try {
+      localStorage.setItem("walletAddress", address);
+      localStorage.setItem("walletType", type);
+    } catch {}
+    try {
+      document.cookie = `wallet_connected=true; path=/`;
+      document.cookie = `wallet_address=${address}; path=/`;
+      document.cookie = `wallet_type=${type}; path=/`;
+    } catch {}
+    setWalletAddress(address);
+    setWalletType(type);
+  };
+
+  const postWalletConnection = async (address: string, type: string) => {
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+      const resp = await fetch(`${API_BASE}/api/wallets/connect`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ walletAddress: address, walletType: type }),
+      });
+      const json = await resp.json();
+      if (!resp.ok || !json.success) {
+        throw new Error(json.error || "Falha ao registrar conexão da carteira");
+      }
+    } catch (e: any) {
+      console.warn("Falha ao salvar conexão no backend:", e?.message || e);
     }
-  ];
+  };
+
+  const connectMetamask = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const anyWin = window as any;
+      if (!anyWin.ethereum) throw new Error("MetaMask não detectada");
+      const provider = new BrowserProvider(anyWin.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      if (!address) throw new Error("Nenhuma conta retornada");
+      saveWalletLocally(address, "metamask");
+      await postWalletConnection(address, "metamask");
+      router.push("/dashboard");
+    } catch (e: any) {
+      setError(e?.message || "Falha ao conectar MetaMask");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const connectCoinbase = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      // Usa SDK quando a extensão/app não estiver disponível
+      const address = await connectCoinbaseWallet();
+      if (!address) throw new Error("Nenhuma conta retornada");
+      saveWalletLocally(address, "coinbase");
+      await postWalletConnection(address, "coinbase");
+      router.push("/dashboard");
+    } catch (e: any) {
+      setError(e?.message || "Falha ao conectar Coinbase Wallet");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const connectWalletConnect = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const EthereumProvider = (await import("@walletconnect/ethereum-provider")).default;
+      const provider = await EthereumProvider.init({
+        projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo",
+        chains: [8453],
+        optionalChains: [1],
+        showQrModal: true,
+      });
+      await provider.enable();
+      const accounts: string[] = provider.accounts || [];
+      const address = accounts?.[0];
+      if (!address) throw new Error("Nenhuma conta retornada");
+      saveWalletLocally(address, "walletconnect");
+      await postWalletConnection(address, "walletconnect");
+      router.push("/dashboard");
+    } catch (e: any) {
+      setError(e?.message || "Falha ao conectar via WalletConnect");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const goToDashboard = () => {
+    router.push("/dashboard");
+  };
 
   return (
-    <main className="animate-fade-in">
-      {/* Header com botão voltar */}
-      <div className="flex items-center justify-between mb-8">
-        <Link 
-          href="/dashboard" 
-          className="flex items-center text-capy-dark hover:text-capy-brown transition-colors duration-200"
-        >
-          <FiArrowLeft className="w-6 h-6 mr-2" />
-          <span className="font-medium">Voltar</span>
-        </Link>
-      </div>
-
-      {/* Título da página */}
-      <div className="text-center mb-8">
-        <div className="flex justify-center mb-4">
-          <div className="w-16 h-16 bg-capy-brown rounded-full flex items-center justify-center">
-            <FiWifi className="w-8 h-8 text-white" />
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-capy-light-green p-4">
+      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center border border-capy-green">
+        <div className="flex justify-center mb-6">
+          <Image src="/capy1.png" alt="Capy Pay Logo" width={120} height={120} priority className="rounded-full" />
         </div>
-        <h1 className="text-3xl font-bold text-capy-dark mb-2">Conectar Carteira</h1>
-        <p className="text-capy-dark/70">Conecte sua carteira Web3</p>
-      </div>
+        <h1 className="text-3xl font-bold text-capy-dark-brown mb-2">Conectar Carteira</h1>
+        <p className="text-capy-green mb-6">Selecione sua carteira preferida para vincular ao Capy Pay.</p>
 
-      {/* Card principal */}
-      <div className="capy-card mb-6">
-        <div className="text-center py-6">
-          <h2 className="text-xl font-semibold text-capy-dark mb-4">
-            Conecte sua carteira Web3 para começar!
-          </h2>
-          
-          <p className="text-capy-dark/60 mb-8 leading-relaxed">
-            Conecte sua carteira para acessar todas as funcionalidades <br />
-            do Capy Pay de forma segura e descentralizada.
-          </p>
-
-          {/* Benefícios */}
-          <div className="space-y-4 mb-8">
-            <div className="flex items-center justify-center text-capy-dark/70">
-              <div className="w-2 h-2 bg-capy-success rounded-full mr-3"></div>
-              <span className="text-sm">Acesso completo ao DeFi</span>
-            </div>
-            <div className="flex items-center justify-center text-capy-dark/70">
-              <div className="w-2 h-2 bg-capy-success rounded-full mr-3"></div>
-              <span className="text-sm">Controle total dos seus assets</span>
-            </div>
-            <div className="flex items-center justify-center text-capy-dark/70">
-              <div className="w-2 h-2 bg-capy-success rounded-full mr-3"></div>
-              <span className="text-sm">Transações seguras</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Opções de carteira */}
-      <div className="space-y-3 mb-6">
-        <h3 className="font-semibold text-capy-dark mb-4">Escolha sua carteira</h3>
-        
-        {walletOptions.map((wallet) => (
+        <div className="space-y-3">
           <button
-            key={wallet.id}
-            className="w-full p-4 bg-white border-2 border-capy-teal/20 rounded-xl hover:border-capy-brown hover:shadow-capy transition-all duration-200"
+            type="button"
+            onClick={connectMetamask}
+            className="w-full py-3 rounded-lg border border-capy-teal/30 hover:border-capy-brown"
+            disabled={isLoading}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-capy-light rounded-xl flex items-center justify-center text-2xl mr-4">
-                  {wallet.icon}
-                </div>
-                <div className="text-left">
-                  <div className="flex items-center">
-                    <h4 className="font-semibold text-capy-dark mr-2">{wallet.name}</h4>
-                    {wallet.popular && (
-                      <span className="bg-capy-brown text-white text-xs px-2 py-1 rounded-full">
-                        Popular
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-capy-dark/60">{wallet.description}</p>
-                </div>
-              </div>
-              <FiArrowRight className="w-5 h-5 text-capy-brown" />
-            </div>
+            Conectar MetaMask
           </button>
-        ))}
-      </div>
+          <button
+            type="button"
+            onClick={connectWalletConnect}
+            className="w-full py-3 rounded-lg border border-capy-teal/30 hover:border-capy-brown"
+            disabled={isLoading}
+          >
+            Conectar via WalletConnect
+          </button>
+          <button
+            type="button"
+            onClick={connectCoinbase}
+            className="w-full py-3 rounded-lg border border-capy-teal/30 hover:border-capy-brown"
+            disabled={isLoading}
+          >
+            Conectar Coinbase Wallet
+          </button>
+        </div>
 
-      {/* Informações de segurança */}
-      <div className="bg-capy-light rounded-xl p-4 mb-6">
-        <div className="flex items-start">
-          <FiShield className="w-5 h-5 text-capy-brown mr-3 mt-0.5 flex-shrink-0" />
-          <div>
-            <h4 className="font-medium text-capy-dark mb-1">Segurança Garantida</h4>
-            <p className="text-sm text-capy-dark/60 leading-relaxed">
-              Nunca compartilhamos suas chaves privadas. Suas transações são processadas 
-              diretamente pela sua carteira de forma segura e descentralizada.
-            </p>
-          </div>
+        {walletAddress && (
+          <p className="text-xs text-capy-dark/60 mt-3">Carteira conectada: {walletAddress} ({walletType})</p>
+        )}
+        {error && (
+          <p className="text-red-500 text-xs mt-2">{error}</p>
+        )}
+
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={goToDashboard}
+            className="w-full py-3 rounded-lg text-lg font-semibold bg-capy-teal text-white hover:bg-capy-dark-teal"
+            disabled={isLoading}
+          >
+            Ir para Dashboard
+          </button>
         </div>
       </div>
-
-      {/* Botões de ação */}
-      <div className="space-y-3">
-        <Link href="/dashboard" className="capy-button-secondary w-full text-center block">
-          Continuar sem carteira
-        </Link>
-      </div>
-    </main>
+    </div>
   );
 }

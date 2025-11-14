@@ -77,4 +77,10 @@ pids
 
 # Temporary folders
 tmp/
-temp/ 
+temp/
+
+# Nested package artifacts (monorepo/frontends/backends)
+**/node_modules/
+**/.next/
+**/dist/
+**/build/

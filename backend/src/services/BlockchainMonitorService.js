@@ -595,16 +595,36 @@ class BlockchainMonitorService {
    */
   async getServiceStatus() {
     try {
-      const network = await this.provider.getNetwork();
-      const blockNumber = await this.provider.getBlockNumber();
-      const balances = await this.getAllBalances();
+      // Garantir que o provider está inicializado
+      if (!this.provider) {
+        try {
+          await this.initializeProvider();
+        } catch (initErr) {
+          logger.warn('Provider not initialized; reporting degraded status', { error: initErr.message });
+        }
+      }
+
+      let network = null;
+      let blockNumber = null;
+      let balances = {};
+
+      if (this.provider) {
+        try {
+          network = await this.provider.getNetwork();
+          blockNumber = await this.provider.getBlockNumber();
+          balances = await this.getAllBalances();
+        } catch (provErr) {
+          logger.warn('Unable to query provider; reporting partial status', { error: provErr.message });
+        }
+      }
 
       return {
         isMonitoring: this.isMonitoring,
-        network: {
+        providerReady: !!this.provider,
+        network: network ? {
           chainId: network.chainId,
           name: network.name,
-        },
+        } : null,
         currentBlock: blockNumber,
         walletAddress: this.config.walletAddress,
         balances,
@@ -619,4 +639,4 @@ class BlockchainMonitorService {
   }
 }
 
-module.exports = BlockchainMonitorService; 
+module.exports = BlockchainMonitorService;

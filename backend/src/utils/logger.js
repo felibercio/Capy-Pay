@@ -22,7 +22,19 @@ const logger = winston.createLogger({
         winston.format.colorize(),
         winston.format.simple(),
         winston.format.printf(({ timestamp, level, message, ...meta }) => {
-          const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
+          // JSON.stringify não suporta BigInt por padrão; converter para string
+          const safeStringify = (obj) => {
+            try {
+              return JSON.stringify(obj, (key, value) =>
+                typeof value === 'bigint' ? value.toString() : value,
+              2);
+            } catch (_) {
+              // Em caso de falha na serialização, retornar representação simples
+              return String(obj);
+            }
+          };
+
+          const metaStr = Object.keys(meta).length ? safeStringify(meta) : '';
           return `${timestamp} [${level}]: ${message} ${metaStr}`;
         })
       ),
@@ -58,4 +70,4 @@ if (process.env.NODE_ENV !== 'production') {
   }));
 }
 
-module.exports = logger; 
+module.exports = logger;

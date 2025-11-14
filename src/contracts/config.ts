@@ -1,10 +1,15 @@
 // Configuração do Smart Contract CapyCoin
+const ENV_ADDRESS = process.env.NEXT_PUBLIC_CAPYCOIN_ADDRESS || null;
+const ENV_CHAIN_ID = process.env.NEXT_PUBLIC_CHAIN_ID
+  ? parseInt(process.env.NEXT_PUBLIC_CHAIN_ID, 10)
+  : 84532;
+
 export const CONTRACT_CONFIG = {
   // Endereço do contrato (null = modo simulação)
-  address: null as string | null,
+  address: ENV_ADDRESS as string | null,
   
   // Chain ID (84532 = Base Sepolia, 8453 = Base Mainnet)
-  chainId: 84532,
+  chainId: ENV_CHAIN_ID,
   
   // RPC URLs
   rpcUrls: {
@@ -19,7 +24,7 @@ export const CONTRACT_CONFIG = {
   },
   
   // Modo simulação (true = sem blockchain real)
-  simulationMode: true,
+  simulationMode: !ENV_ADDRESS,
   
   // Configurações do token
   token: {
@@ -62,4 +67,4 @@ export const formatTokenAmount = (amount: bigint, decimals: number = 18): string
   const whole = str.slice(0, -decimals) || '0';
   const decimal = str.slice(-decimals).replace(/0+$/, '');
   return decimal ? `${whole}.${decimal}` : whole;
-}; 
+};

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Providers from './providers';
 
 export const metadata: Metadata = {
   title: 'Capy Pay - Pagamentos Cripto Simples',
@@ -17,12 +18,14 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="bg-capy-teal min-h-screen">
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="w-full max-w-md">
-            {children}
+        <Providers>
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="w-full max-w-md">
+              {children}
+            </div>
           </div>
-        </div>
+        </Providers>
       </body>
     </html>
   );
-} 
+}
